@@ -1,6 +1,7 @@
 #include "taskclass.h"
 #include "contactclass.h"
 #include "mainwindow.h"
+#include "abstractedsmsclass.h"
 
 TaskClass::TaskClass(QWidget *parent) : QMainWindow(parent)
 {
@@ -21,7 +22,7 @@ int TaskClass::PCScommand(TaskData commandAndData,ContactClass *phoneBook)
 
 }
 
-int TaskClass::SMScommand(TaskData commandAndData, ContactClass *phoneBook)
+int TaskClass::SMScommand(AbstractedSmsClass *smsDevice, TaskData commandAndData, ContactClass *phoneBook)
 {
     m_kill = false;
     QStack<QString> callList =  phoneBook->getContactsForGroup(commandAndData.messageGroup);
@@ -41,9 +42,15 @@ int TaskClass::SMScommand(TaskData commandAndData, ContactClass *phoneBook)
                 number = numberName.mid((nameEndsAt+1),numberName.length());
                 qDebug() << number << " " << name;
                 if (commandAndData.messageBody == BODY_SOURCE)
-                    qDebug() << "using serial port text";
+		            smsDevice->sendText(number.toUtf8().data(), "Serial Panel Text");
                 else
-                    qDebug() << commandAndData.messageBody;
+		            smsDevice->sendText(number.toUtf8().data(), commandAndData.messageBody.toUtf8().data());
+				// block here until text sent
+	            // need to keep an eye that we dont stay for ever
+	            while (!smsDevice->isTextCycleFinished())
+	            {
+		            ;   
+	            }
             }
         }
         else

@@ -38,6 +38,21 @@ using namespace std;
 #define SMS_STACK_SIZE 10
 #define SMS_READ_STACK_SIZE 15
 
+// names for AT commands
+#define ECHO_OFF 0
+#define TEXT_MODE_ON 1
+#define VERBOSE_ON 2
+#define DISABLE_AUTO_ANS 3
+#define TEST_SIM_PIN 4
+#define REGISTERED_ON_NET 5
+#define SIGNAL_STRENGTH 6
+#define CALLER_ID 7
+#define ENABLE_SMS_NOTIFICATION 8
+#define EXTENDED_INFO_OFF 9
+#define CLEAR_SMS_IN 10 // this is only sent on a reboot
+#define REPEAT_AT_CYCLE 100 // when this value is reached the commands reissue
+#define MODEM_REBOOTS_AFTER_MINS 2 // if no comms reboot after this time
+
 #define STAGE_1 0
 #define STAGE_2 1
 #define STAGE_3 2
@@ -125,13 +140,12 @@ struct stackVars{
     bool stackInUse;
 };
 
-class serialPort : public QMainWindow
+class AbstractedSmsClass : public QMainWindow
 {
 	Q_OBJECT
 public:
-	serialPort();
-	~serialPort();
-	char readSerial(void);
+	AbstractedSmsClass();
+	~AbstractedSmsClass();
 	char smsNumber[20];
 	char smsBody[250];
 
@@ -159,8 +173,13 @@ public:
 	char smsNumberBody[300]; // [0] contains number and DTG [1] contains body
 	phoneBookClass *phone_book;	// an instance of our phonebook
 	void writeToEngLog(std::string logThisPlease);
-
+	int sendText(char*, char*);
+	// some getters and setters
+	int getSignalLevel(void);
+	void setTextCycleFinished(bool b);
+	bool isTextCycleFinished(void);
 private:
+	bool m_textCycleFinished;
     int openNonCanonicalUART(void);
     void closeNonCanonicalUART(void);
     void resetModemFlags(void);
@@ -176,7 +195,7 @@ private:
 	struct serialString RxEventBuffer;
     struct powerCharsIn rxedChars;
     struct smsStackitem smsStackElement[SMS_STACK_SIZE+1];
-    int sendText(char*, char*);
+    
     void handleExpectedResponse(void);
     void sendTextError(void);
     void clearBuffer(void);
@@ -222,11 +241,15 @@ private:
 	int groupScanPointer; // this scans across group string sending to particular groups
 	int groupIndexPosition;
 	std::string shutdownMessage;
-
+	int ATcommand; // which AT command to send
+	bool skipDeleteSMSmemory;
+	int signalLevel;
 public slots:
 	void ATcommandResponseTimeout(void);
 	void CTSneverReleased(void);
-	
+	void readSerial(void);
+	void sendNextATcommand(void);
+	void checkForIncoming(void);
 
 private slots:
     void handleTheStack(void);
@@ -236,6 +259,8 @@ private slots:
 signals:
 	int dataForLog(std::string logThis);
 	void requestCompleteReset(std::string identifier);
+	void signalLevelIs(int i);
+	void parsedIncomingSMS(QString DTG, QString callerId, QString body);
 };
 
 #endif 

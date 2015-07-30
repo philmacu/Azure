@@ -2,6 +2,7 @@
 #include "taskclass.h"
 #include "contactclass.h"
 #include "mainwindow.h"
+#include "abstractedsmsclass.h"
 
 struct TaskData;
 
@@ -55,7 +56,7 @@ void ScenarioThread::run()
             }
             else if  ((poppedTask.protocol == "#SMS#") & !m_stop)
             {
-                taskControl->SMScommand(poppedTask,smsContactRef);
+                taskControl->SMScommand(smsDevice, poppedTask,smsContactRef);
             }
 
 
@@ -180,3 +181,10 @@ void ScenarioThread::setIfLatchable(bool b)
 
 
 
+
+
+void ScenarioThread::linkScenarioToMultipleDevices(AbstractedSmsClass *sms)
+{
+	// will copy pointers to the interfaces
+	smsDevice = sms;
+}

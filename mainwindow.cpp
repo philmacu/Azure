@@ -3,7 +3,7 @@
 #include "fileaccess.h"
 #include "scenarothread.h"
 #include "contactclass.h"
-#include "smsabstractionclass.h"
+#include "abstractedsmsclass.h"
 
 
 #include <QDebug>
@@ -16,6 +16,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 	m_scenarioIndex = 0;
 	// create a file object for test purposes
 	fileLoader = new FileAccess;
+	// devices reg is passed to scenario then object
+	SMSinterface = new AbstractedSmsClass;
 	// lets create a scenario object
 	touchButtonScenario = new ScenarioThread;
 	firePanelScenario = new ScenarioThread;
@@ -31,14 +33,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 	blankStatusBar = new QTimer;
 	blankStatusBar->setSingleShot(true);
 	blankStatusBar->stop();
+	// timer for checking sms serial
+	readSerialSMS = new QTimer;
+	readSerialSMS->stop();
+	sendATcommand = new QTimer;
+	sendATcommand->stop();
 
-	    // debug sset up a fake abstraction Object
-	testSmsLayer = new SmsAbstractionClass;
+	
+	
 
 	setUpConnections(); // link signals to slots;
-
+	passRefOfDevicesToScenario(); // link devices to scenario
+	
 	    // test trigger
-	testSmsLayer->generateTrigger();
+	//SMSinterface->generateTrigger();
 
 	    // lets start the file load processs
 	if (loadConfigFiles())
@@ -48,6 +56,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 	else
 		updateStatusBar("Load errors please review.");
 	qDebug() << "SMS Phone Book Size: " << smsContacts->contactNumbers.size();
+	// start timers
+	readSerialSMS->start(10);
+	sendATcommand->start(1000);
+
+	
 }
 
 MainWindow::~MainWindow()
@@ -59,7 +72,10 @@ MainWindow::~MainWindow()
 	delete smsContacts;
 	delete pcsContacts;
 	delete hytContacts;
-	delete testSmsLayer;
+	delete SMSinterface;
+	delete blankStatusBar;
+	delete readSerialSMS;
+	delete sendATcommand;
 }
 
 void MainWindow::setUpConnections()
@@ -100,30 +116,26 @@ void MainWindow::setUpConnections()
 		SLOT(updateStatusBar(QString)));
 
 		    // timers
-	connect(serviceScenario,
-		SIGNAL(timeout()),
+	connect(serviceScenario,SIGNAL(timeout()),this,SLOT(checkForNextScenario()));
+	connect(blankStatusBar,SIGNAL(timeout()),this,SLOT(blankStatusBarText()));
+	connect(readSerialSMS, SIGNAL(timeout()), SMSinterface, SLOT(readSerial()));
+	connect(sendATcommand, SIGNAL(timeout()), SMSinterface, SLOT(sendNextATcommand()));
+	
+	// scenarioes that emit signals are linked to objects 
+	connect(firePanelScenario,SIGNAL(scenarioIssuingReset(QChar)),this,SLOT(intiateReset(QChar)));
+	connect(touchButtonScenario,SIGNAL(scenarioIssuingReset(QChar)),this,SLOT(intiateReset(QChar)));
+	
+	// signals for the UI
+	connect(SMSinterface,SIGNAL(signalLevelIs(int)), this, SLOT(gotUpdatedSigLvl(int)));
+	connect(SMSinterface,
+		SIGNAL(parsedIncomingSMS(QString, QString, QString)),
 		this,
-		SLOT(checkForNextScenario()));
-	connect(blankStatusBar,
-		SIGNAL(timeout()),
-		this,
-		SLOT(blankStatusBarText()));
-
-		    // scenarioes that emit signals are linked to objects - could be messy!!!
-	connect(firePanelScenario,
-		SIGNAL(scenarioIssuingReset(QChar)),
-		this,
-		SLOT(intiateReset(QChar)));
-	connect(touchButtonScenario,
-		SIGNAL(scenarioIssuingReset(QChar)),
-		this,
-		SLOT(intiateReset(QChar)));
-
+		SLOT(gotNotificationOfSMS(QString, QString, QString)));
 		    // debug trigger from abstraction layer
-	connect(testSmsLayer,
-		SIGNAL(triggerDetected(int)),
-		this,
-		SLOT(testRxOfTrigger(int)));
+	//connect(SMSinterface,
+	//	SIGNAL(triggerDetected(int)),
+	//	this,
+	//	SLOT(testRxOfTrigger(int)));
 }
 
 
@@ -374,3 +386,25 @@ void MainWindow::simulateEndOfTask()
 	firePanelScenario->debugLockoutTask = false;
 }
 
+
+void MainWindow::gotUpdatedSigLvl(int i)
+{
+	// update UI
+	ui->signalLevel->setValue(i);
+	
+}
+
+
+void MainWindow::passRefOfDevicesToScenario(void)
+{
+	touchButtonScenario->linkScenarioToMultipleDevices(SMSinterface);
+	firePanelScenario->linkScenarioToMultipleDevices(SMSinterface);
+}
+
+
+void MainWindow::gotNotificationOfSMS(QString DTG, QString ID, QString body)
+{
+	// display it
+	ui->caller->setText(ID);
+	ui->smsBody->setText(body);
+}

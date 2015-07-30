@@ -17,7 +17,7 @@ namespace Ui {
 class ScenarioThread;
 class FileAccess;
 class ContactClass;
-class SmsAbstractionClass;
+class AbstractedSmsClass;
 
 struct TaskData {
 	QString protocol;
@@ -29,8 +29,7 @@ class MainWindow : public QMainWindow
 {
 	Q_OBJECT
 
-	public :
-	    explicit MainWindow(QWidget *parent = 0);
+public : explicit MainWindow(QWidget *parent = 0);
 	~MainWindow();
 	QQueue<ScenarioThread*> scenarioQueue;
 	QQueue<QString> testQ; 
@@ -41,7 +40,7 @@ class MainWindow : public QMainWindow
 	ContactClass *smsContacts;
 	ContactClass *pcsContacts;
 	ContactClass *hytContacts;
-	SmsAbstractionClass *testSmsLayer;
+	AbstractedSmsClass *SMSinterface;
 
 private:
 	Ui::MainWindow *ui;
@@ -52,12 +51,14 @@ private:
 	int m_scenarioIndex;
 	QTimer *serviceScenario;
 	QTimer *blankStatusBar;
+	QTimer *readSerialSMS;
+	QTimer *sendATcommand;
 	int loadConfigFiles(void);
 	int queueScenario(ScenarioThread *scenario); // the generic scenario loader
 	void setUpConnections(void);   // use to link signals to slots
 	void testAndReset(ScenarioThread *s, QChar c); // test and reset the latch flag
 	public slots :
-	    void queueFire(void);
+	void queueFire(void);
 	void queueSoft(void);
 	void queueManDown(void);
 	void pushAckPressed();
@@ -66,12 +67,14 @@ private:
 	void scenarioFinished(void);
 	void blankStatusBarText(void);
 	void simulateEndOfTask(void);
-
-	private slots :
-	    void checkForNextScenario(void);
+	void passRefOfDevicesToScenario(void);
+public slots :
+	void gotUpdatedSigLvl(int i);
+	void gotNotificationOfSMS(QString DTG, QString ID, QString body);
+private slots :
+	void checkForNextScenario(void);
 	void updateStatusBar(QString message);
 	void intiateReset(QChar); // checks scenarioes and resets latch flags
-
 	void testRxOfTrigger(int i); // for test triggerred by an obj in abstraction layer
 };
 

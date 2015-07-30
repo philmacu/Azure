@@ -10,6 +10,7 @@
 
 class TaskClass;
 class ContactClass;
+class AbstractedSmsClass;
 struct TaskData;
 
 class ScenarioThread : public QThread
@@ -35,6 +36,7 @@ public:
     // we dont need to new them as the memory is allocated already
     ContactClass *smsContactRef;
     ContactClass *pcsContactRef;
+	AbstractedSmsClass *smsDevice;
     void setPriority(int p);
     int getPriority(void);
     bool isRunning(void); // bool state of scenarrio
@@ -51,7 +53,8 @@ public:
 
     bool isCurrentlyLatched() const;
     void setIsCurrentlyLatched(bool isCurrentlyLatched);
-
+	void linkScenarioToMultipleDevices(AbstractedSmsClass *sms); //increase to allow all interfaces
+	
 private:
     QString m_text;
     QString m_name;

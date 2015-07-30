@@ -1,9 +1,7 @@
-#include "serialPort.h"
-#include "phoneBookClass.h"
+#include "abstractedsmsclass.h"
 
-serialPort::serialPort()
+AbstractedSmsClass::AbstractedSmsClass()
 {
-	phone_book = new phoneBookClass;
 	openNonCanonicalUART();
 	resetModemFlags();
 	// allocate resources for a timer to monitor replies
@@ -53,10 +51,9 @@ serialPort::serialPort()
 	shutdownMessage = SHUTDOWN_MESSAGE;
 }
 
-serialPort::~serialPort()
+AbstractedSmsClass::~AbstractedSmsClass()
 {
 	closeNonCanonicalUART();
-	delete phone_book;
 	delete ATresponseTimer;
 	delete CTSneverReleasedTimer;
 	delete schedulerTimer;
@@ -65,33 +62,47 @@ serialPort::~serialPort()
 	qDebug() << "SMS destrucor completed OK/n";
 }
 
-void serialPort::handleTheStack()
+void AbstractedSmsClass::handleTheStack()
 {
-
+	// this slot should be routinely called to handle incoming messages
+	// lets check to see if any messages that came in need handling
+	if (readSMSstackOutIndex < readSMSinStackIndex) 
+	{
+		readSMSstackOutIndex++;
+		readText();       // reads message ID at top of stack
+	}
+	if (smsCommandOutStackIndex < smsCommandStackIndex) {
+		smsCommandOutStackIndex++;
+		parseSMS();    // parse messages on stack
+	}
+	if (deleteSMSoutStackIndex < deleteSMSstackIndex) {
+		deleteSMSoutStackIndex++;
+		deleteSMS();    // delete messages from SIM
+	}
 }
 
-int serialPort::getAndSendSMSfromStack()
+int AbstractedSmsClass::getAndSendSMSfromStack()
 {
 
 	
 }
 
-void serialPort::releaseLockoutPause()
+void AbstractedSmsClass::releaseLockoutPause()
 {
 
 }
 
-int serialPort::pushSMSstack(const char *number, char *body)
+int AbstractedSmsClass::pushSMSstack(const char *number, char *body)
 {
     return -1;
 }
 
-int serialPort::popSMSstack()
+int AbstractedSmsClass::popSMSstack()
 {
 
 }
 
-int serialPort::pushReadSMSstack(char *smsMessageID)
+int AbstractedSmsClass::pushReadSMSstack(char *smsMessageID)
 {
     if (readSMSinStackIndex < SMS_READ_STACK_SIZE ) {
         // we have space in the stack
@@ -107,7 +118,7 @@ int serialPort::pushReadSMSstack(char *smsMessageID)
         return smsStackIndex;*/
 }
 
-void serialPort::ATcommandResponseTimeout(void)
+void AbstractedSmsClass::ATcommandResponseTimeout(void)
 {
 	// we sent an AT command but never got a response in time, we reset our flags
 	qDebug() << "Modem response timedout";
@@ -123,13 +134,13 @@ void serialPort::ATcommandResponseTimeout(void)
 	ATcommandTimeout = true;
 }
 
-void serialPort::CTSneverReleased(void)
+void AbstractedSmsClass::CTSneverReleased(void)
 {
 	// CTS didn't clear and we want to send an sms
 	clearSMSflags();
 }
 
-char serialPort::readSerial()
+void AbstractedSmsClass::readSerial()
 {
 	if (gsmFlags.responseExpected)
 	{
@@ -139,136 +150,139 @@ char serialPort::readSerial()
 		//int readResult = read(fd, buffer, 1);
 		if (int readResult = read(fd, buffer, 1) > 0)
 		{
-			if (((buffer[0] == '\r') | (buffer[0] == '\n'))& !readingSMS) {
+			if (((buffer[0] == '\r') | (buffer[0] == '\n'))& !readingSMS) 
+			{
 				clearBuffer();
 				// we got something so serial is up
 				isAlive = true;
-		}
-		else 
-		{
-			//qDebug() << buffer[0];
-			//qDebug() << TxResponseBuffer.index;
-			TxResponseBuffer.buffer[TxResponseBuffer.index] = buffer[0];
-			TxResponseBuffer.index++;
-			TxResponseBuffer.buffer[TxResponseBuffer.index] = '\0'; // need this so compare works OK
-			// lets do some testing
-			//if (TxResponseBuffer.buffer[0] == '>')
-			strcpy(testSting, ">");
-			if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
-			{
-				gsmFlags.responseType = RESPONSE_GTHAN;// got a GTHAN
-				gotWhatWeWanted = true;
 			}
-			strcpy(testSting, "+CMGS");
-			if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+			else 
 			{
-				gsmFlags.responseType = RESPONSE_TEXT_SENT_OK; // got an ok
-				gotWhatWeWanted = true;
-				gsmFlags.CTS = true;
-			}
-			strcpy(testSting, "+CMSE"); // error on send text
-			if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
-			{
-				gsmFlags.responseType = RESPONSE_TEXT_SENT_FAIL; // got an ok
-				gotWhatWeWanted = true;
-				gsmFlags.CTS = true;
-			}
-			// better to use a string so we can make sure of correct length
-			strcpy(testSting, "OK");
-			if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
-			{
-				gsmFlags.responseType = RESPONSE_OK; // got an ok
-				gotWhatWeWanted = true;
-				gsmFlags.CTS = true;
-			}
-			strcpy(testSting, "ERROR");
-			if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
-			{
-				gsmFlags.responseType = RESPONSE_ERR; // got an ok
-				gotWhatWeWanted = true;
-				gsmFlags.CTS = true;
-			}
-			strcpy(testSting, "+CPIN: READY");
-			if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
-			{
-				gsmFlags.responseType = RESPONSE_SIM_UNLOCKED_OK; // got an ok
-				gotWhatWeWanted = true;
-				gsmFlags.CTS = true;
-			}
-			strcpy(testSting, "+CME ERROR");
-			if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
-			{
-				gsmFlags.responseType = RESPONSE_SIM_IS_LOCKED; // got an ok
-				gotWhatWeWanted = true;
-				gsmFlags.CTS = true;
-			}
-			// we need an extra char 
-			if (TxResponseBuffer.index > 9){
-				strcpy(testSting, "+CREG:");
+				//qDebug() << buffer[0];
+				//qDebug() << TxResponseBuffer.index;
+				TxResponseBuffer.buffer[TxResponseBuffer.index] = buffer[0];
+				TxResponseBuffer.index++;
+				TxResponseBuffer.buffer[TxResponseBuffer.index] = '\0'; // need this so compare works OK
+				// lets do some testing
+				//if (TxResponseBuffer.buffer[0] == '>')
+				strcpy(testSting, ">");
 				if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
 				{
-					// so its a reply to a registration request
-					if (TxResponseBuffer.buffer[9] == '1') {
-						gsmFlags.responseType = RESPONSE_NETWORK_REG;
-						gotWhatWeWanted = true;
-						gsmFlags.CTS = true;
-					}
-					else {
-						// not registered
-						gsmFlags.responseType = RESPONSE_NETWORK_ERROR;
-						gotWhatWeWanted = true;
-						gsmFlags.CTS = true;
-					}
+					gsmFlags.responseType = RESPONSE_GTHAN;// got a GTHAN
+					gotWhatWeWanted = true;
 				}
-			}
-			if (TxResponseBuffer.index > 7){
-				strcpy(testSting, "+CSQ:");
+				strcpy(testSting, "+CMGS");
 				if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
 				{
-					char level[3];
-					gsmFlags.signalStrengthLvL = 0;
-					level[0] = TxResponseBuffer.buffer[6];
-					level[1] = TxResponseBuffer.buffer[7];
-					if ((level[1] > 47) & (level[1] < 58)) gsmFlags.signalStrengthLvL = (int)level[1] - 48;
-					if ((level[0] > 47) & (level[0] < 58)) gsmFlags.signalStrengthLvL += ((int)level[0] - 48) * 10;
-					gsmFlags.responseType = RESPONSE_SIG_LVL;
+					gsmFlags.responseType = RESPONSE_TEXT_SENT_OK; // got an ok
 					gotWhatWeWanted = true;
 					gsmFlags.CTS = true;
 				}
-			}
-            strcpy(testSting, "+CMGR:");
-            if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
-            {
-                readingSMS = true;
-                // need to count number of \r
-                if (buffer[0] == '\r') {
-                        numberOfCR++;
-                }
-                if (numberOfCR > 2)
-                {
-                    // lets try put the message onto the stack
-                    if (smsCommandStackIndex < SMS_READ_STACK_SIZE){
-                        smsCommandStackIndex++;
-                        strcpy(messageStack[smsCommandStackIndex], TxResponseBuffer.buffer);
-                        qDebug() << "Copied sms onto stack";
-                    }
-                    else qDebug() << "Command stack full";
-                    numberOfCR = 0;
-                    readingSMS = false;
-                    gsmFlags.CTS = true;
-                    gsmFlags.responseExpected = false;
-                    // now push the message ID onto delete stack
-                    if (deleteSMSstackIndex < SMS_READ_STACK_SIZE){
-                        deleteSMSstackIndex++;
-                        strcpy(deleteSMSstack[deleteSMSstackIndex],messageId[readSMSstackOutIndex]);
-                        qDebug() << messageId[readSMSstackOutIndex] << "Queued for deletion";
-                    }
-                    else qDebug() << "Delete Stack full";
-                    popReadSMSstack();
-                    qDebug() << "SMS Read Removed from stack";
-                    clearBuffer();
-					numberOfCR = 0;
-                }
+				strcpy(testSting, "+CMSE"); // error on send text
+				if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+				{
+					gsmFlags.responseType = RESPONSE_TEXT_SENT_FAIL; // got an ok
+					gotWhatWeWanted = true;
+					gsmFlags.CTS = true;
+				}
+				// better to use a string so we can make sure of correct length
+				strcpy(testSting, "OK");
+				if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+				{
+					gsmFlags.responseType = RESPONSE_OK; // got an ok
+					gotWhatWeWanted = true;
+					gsmFlags.CTS = true;
+				}
+				strcpy(testSting, "ERROR");
+				if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+				{
+					gsmFlags.responseType = RESPONSE_ERR; // got an ok
+					gotWhatWeWanted = true;
+					gsmFlags.CTS = true;
+				}
+				strcpy(testSting, "+CPIN: READY");
+				if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+				{
+					gsmFlags.responseType = RESPONSE_SIM_UNLOCKED_OK; // got an ok
+					gotWhatWeWanted = true;
+					gsmFlags.CTS = true;
+				}
+				strcpy(testSting, "+CME ERROR");
+				if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+				{
+					gsmFlags.responseType = RESPONSE_SIM_IS_LOCKED; // got an ok
+					gotWhatWeWanted = true;
+					gsmFlags.CTS = true;
+				}
+				// we need an extra char 
+				if (TxResponseBuffer.index > 9){
+					strcpy(testSting, "+CREG:");
+					if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+					{
+						// so its a reply to a registration request
+						if (TxResponseBuffer.buffer[9] == '1') {
+							gsmFlags.responseType = RESPONSE_NETWORK_REG;
+							gotWhatWeWanted = true;
+							gsmFlags.CTS = true;
+						}
+						else {
+							// not registered
+							gsmFlags.responseType = RESPONSE_NETWORK_ERROR;
+							gotWhatWeWanted = true;
+							gsmFlags.CTS = true;
+						}
+					}
+				}
+				if (TxResponseBuffer.index > 7){
+					strcpy(testSting, "+CSQ:");
+					if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+					{
+						char level[3];
+						gsmFlags.signalStrengthLvL = 0;
+						level[0] = TxResponseBuffer.buffer[6];
+						level[1] = TxResponseBuffer.buffer[7];
+						if ((level[1] > 47) & (level[1] < 58)) gsmFlags.signalStrengthLvL = (int)level[1] - 48;
+						if ((level[0] > 47) & (level[0] < 58)) gsmFlags.signalStrengthLvL += ((int)level[0] - 48) * 10;
+						gsmFlags.responseType = RESPONSE_SIG_LVL;
+						gotWhatWeWanted = true;
+						gsmFlags.CTS = true;
+						// let the ui know
+						emit signalLevelIs(gsmFlags.signalStrengthLvL);
+					}
+				}
+				strcpy(testSting, "+CMGR:");
+				if (!strncmp(TxResponseBuffer.buffer, testSting, strlen(testSting)))
+				{
+					readingSMS = true;
+					// need to count number of \r
+					if (buffer[0] == '\r') {
+							numberOfCR++;
+					}
+					if (numberOfCR > 2)
+					{
+						// lets try put the message onto the stack
+						if (smsCommandStackIndex < SMS_READ_STACK_SIZE){
+							smsCommandStackIndex++;
+							strcpy(messageStack[smsCommandStackIndex], TxResponseBuffer.buffer);
+							qDebug() << "Copied sms onto stack";
+						}
+						else qDebug() << "Command stack full";
+						numberOfCR = 0;
+						readingSMS = false;
+						gsmFlags.CTS = true;
+						gsmFlags.responseExpected = false;
+						// now push the message ID onto delete stack
+						if (deleteSMSstackIndex < SMS_READ_STACK_SIZE){
+							deleteSMSstackIndex++;
+							strcpy(deleteSMSstack[deleteSMSstackIndex],messageId[readSMSstackOutIndex]);
+							qDebug() << messageId[readSMSstackOutIndex] << "Queued for deletion";
+						}
+						else qDebug() << "Delete Stack full";
+						popReadSMSstack();
+						qDebug() << "SMS Read Removed from stack";
+						clearBuffer();
+						numberOfCR = 0;
+					}
                 }
             }
         }
@@ -276,6 +290,7 @@ char serialPort::readSerial()
 	}
 	else
 	{
+		
 		// check for ring in etc, COULD ALSO BE GETTING echoes at start
 		char buffer[] = "\0", testSting[20];
 		if (int readResult = read(fd, buffer, 1) > 0)
@@ -337,10 +352,9 @@ char serialPort::readSerial()
 			}
 		}
 	}
-	return '-';
 }
 
-int serialPort::parseSMS()
+int AbstractedSmsClass::parseSMS()
 {
     // lets deconstruct sms
     qDebug() << "Message :" << messageStack[smsCommandStackIndex] ;
@@ -392,24 +406,27 @@ int serialPort::parseSMS()
 		default:
 			break;
 		}
-		
 	}
+	// let everyone know!
+	emit parsedIncomingSMS(QString::fromUtf8(callerDTG), QString::fromUtf8(callerId),
+		QString::fromUtf8(callerText));
     // if all handled reset the stack
     if (smsCommandOutStackIndex >= smsCommandStackIndex){
         smsCommandOutStackIndex = -1;
         smsCommandStackIndex = -1;
     }
-	// test for a magic text
-	if (!strcmp(callerText, shutdownMessage.c_str()))
-	{
-		// we have received the code
-		std::string requestFrom(callerId);
-		writeToEngLog("Received a shutdown message from: " + requestFrom);
-		requestCompleteReset(requestFrom);
-	}
+// this is now done via the slot
+	//// test for a magic text
+	//if (!strcmp(callerText, shutdownMessage.c_str()))
+	//{
+		//// we have received the code
+		//std::string requestFrom(callerId);
+		//writeToEngLog("Received a shutdown message from: " + requestFrom);
+		//requestCompleteReset(requestFrom);
+	//}
 }
 
-int serialPort::openNonCanonicalUART()
+int AbstractedSmsClass::openNonCanonicalUART()
 {
 	
 	int result = false;
@@ -455,14 +472,14 @@ int serialPort::openNonCanonicalUART()
 	return result;
 }
 
-void serialPort::closeNonCanonicalUART()
+void AbstractedSmsClass::closeNonCanonicalUART()
 {
 	// do a flush of both RX and TX sata
 	tcflush(fd, TCIOFLUSH);
 	tcsetattr(fd, TCSANOW, &oldtio);
 }
 
-void serialPort::handleExpectedResponse()
+void AbstractedSmsClass::handleExpectedResponse()
 {
 	// this is called if we got a response in, generally will be used to 
 	// send second part of command
@@ -605,14 +622,16 @@ void serialPort::handleExpectedResponse()
 	//gsmFlags.CTS = true;
 }
 
-int serialPort::sendText(char *destNumber, char *messageToGo){
+int AbstractedSmsClass::sendText(char *destNumber, char *messageToGo){
 	// MULTIPART SEQUENCE	
+	
 	char ATmessageString[200];
 	int result;
 	smsSendProgress++;
 	switch (gsmFlags.sendText)
 	{
 	case STAGE_1:
+ 		m_textCycleFinished = false;
 		// haven't sent anything yet
 		// store number and message
 		//textTo = destNumber;
@@ -665,17 +684,8 @@ int serialPort::sendText(char *destNumber, char *messageToGo){
 		else gsmFlags.sendText = STAGE_1;
 		break;
 	case STAGE_3:
-		// what we do next depends on if this is a single or multiple sends
-        // pop the element from the stack,
-		if (singleText){
-			popSMSstack();
-		}
-		else if (groupText){
-			// so how do we handle group!!!
-			// need to get next number from phone book
-			getNextFromPBook = true; // this will trigger next send
-		}
-		//dataForLog("Text Sent");
+		// the calling fundtion should be blocked can release it now
+		m_textCycleFinished = true;
 	default:
 		gsmFlags.sendText = STAGE_1;
 		smsSendProgress = 0;
@@ -684,20 +694,20 @@ int serialPort::sendText(char *destNumber, char *messageToGo){
 	return gsmFlags.sendText;
 }
 
-void serialPort::delayAfterSend(void)
+void AbstractedSmsClass::delayAfterSend(void)
 {
 	delayAfterSendTimer->stop();
 	gsmFlags.sendingAtext = false;
 }
 
-void serialPort::sendTextError(void) //error could of occurred at any time how do we handle it
+void AbstractedSmsClass::sendTextError(void) //error could of occurred at any time how do we handle it
 {
 	clearBuffer();
 	gsmFlags.sendText = 0;
 	sendText(smsNumber, smsBody);
 }
 
-void serialPort::clearBuffer(void)
+void AbstractedSmsClass::clearBuffer(void)
 {
 	// clear the buffer
 	TxResponseBuffer.buffer[0] = '\0';
@@ -706,7 +716,7 @@ void serialPort::clearBuffer(void)
 	allowCR = false;
 }
 
-void serialPort::clearRxBuffer(void)
+void AbstractedSmsClass::clearRxBuffer(void)
 {
 	// clear the buffer
 	RxEventBuffer.buffer[0] = '\0';
@@ -714,7 +724,7 @@ void serialPort::clearRxBuffer(void)
 	RxEventBuffer.MaxLength = TX_BUFFER_MAX;
 }
 
-int serialPort::hangUp()
+int AbstractedSmsClass::hangUp()
 {
 	if (gsmFlags.CTS)
 	{
@@ -730,7 +740,7 @@ int serialPort::hangUp()
 	else return 0;
 }
 
-int serialPort::ATE0(void)
+int AbstractedSmsClass::ATE0(void)
 {
 	int result = 0;
 	// only send if ATE0 state is unknown
@@ -753,7 +763,7 @@ int serialPort::ATE0(void)
 	return result;
 }
 
-int serialPort::ATV1(void)
+int AbstractedSmsClass::ATV1(void)
 {
 	int result = 0;
 	// only send if ATE0 state is unknown
@@ -774,7 +784,7 @@ int serialPort::ATV1(void)
 	return result;
 }
 
-int serialPort::CMGF1(void)
+int AbstractedSmsClass::CMGF1(void)
 {
 	int result = 0;
 	if (!gsmFlags.CMGF1)
@@ -794,7 +804,7 @@ int serialPort::CMGF1(void)
 	return result;
 }
 
-int serialPort::CSQ(void)
+int AbstractedSmsClass::CSQ(void)
 {
 	int result = 0;
 	if (!gsmFlags.CSQ)
@@ -814,7 +824,7 @@ int serialPort::CSQ(void)
 	return result;
 }
 
-int serialPort::ATS0(void)
+int AbstractedSmsClass::ATS0(void)
 {
 	int result = 0;
 	if (!gsmFlags.ATS0)
@@ -834,7 +844,7 @@ int serialPort::ATS0(void)
 	return result;
 }
 
-int serialPort::CPIN(void)
+int AbstractedSmsClass::CPIN(void)
 {
 	int result = 0;
 	if (!gsmFlags.CPIN)
@@ -854,7 +864,7 @@ int serialPort::CPIN(void)
 	return result;
 }
 
-int serialPort::CREG(void)
+int AbstractedSmsClass::CREG(void)
 {
 	int result = 0;
 	if (!gsmFlags.CREG)
@@ -874,7 +884,7 @@ int serialPort::CREG(void)
 	return result;
 }
 
-int serialPort::CLIP(void)
+int AbstractedSmsClass::CLIP(void)
 {
 	int result = 0;
 	if (!gsmFlags.CLIP)
@@ -894,7 +904,7 @@ int serialPort::CLIP(void)
 	return result;
 }
 
-int serialPort::CNMI(void)
+int AbstractedSmsClass::CNMI(void)
 {
 	int result = 0;
 	if (!gsmFlags.CNMI)
@@ -914,7 +924,7 @@ int serialPort::CNMI(void)
 	return result;
 }
 
-int serialPort::CRC0(void)
+int AbstractedSmsClass::CRC0(void)
 {
 	int result = 0;
 	if (!gsmFlags.CRC0)
@@ -934,7 +944,7 @@ int serialPort::CRC0(void)
 	return result;
 }
 
-int serialPort::CMGD_all(void)
+int AbstractedSmsClass::CMGD_all(void)
 {
 	int result = 0;
 	if (!gsmFlags.CMGD)
@@ -957,7 +967,7 @@ int serialPort::CMGD_all(void)
 	return result;
 }
 
-void serialPort::resetModemFlags(void){
+void AbstractedSmsClass::resetModemFlags(void){
 	// this clears all flags
 	gsmFlags.CTS = true;
 	gsmFlags.readMsg = false;
@@ -1007,9 +1017,10 @@ void serialPort::resetModemFlags(void){
 	groupScanPointer = 0; // this scans across group string sending to particular groups
 	groupIndexPosition = 0;
 	isAlive = false;
+	ATcommand = 0;
 }
 
-void serialPort::clearSMSflags(void)
+void AbstractedSmsClass::clearSMSflags(void)
 {
 	// just clear some flags so we can resend text
 	gsmFlags.CTS = true;
@@ -1023,7 +1034,7 @@ void serialPort::clearSMSflags(void)
 	clearBuffer();
 }
 
-int serialPort::errorCheckSMS(char *number, char *body)
+int AbstractedSmsClass::errorCheckSMS(char *number, char *body)
 {
 	int result=0;
 	if (!strlen(number)) result |= NO_NUMBER;
@@ -1041,7 +1052,7 @@ int serialPort::errorCheckSMS(char *number, char *body)
 	return result;
 }
 
-int serialPort::readText()
+int AbstractedSmsClass::readText()
 {
 	int result = 0;
     // read message number from top of stack
@@ -1062,7 +1073,7 @@ int serialPort::readText()
 	}
 }
 
-int serialPort::deleteSMS()
+int AbstractedSmsClass::deleteSMS()
 {
     int result = 0;
     //send command to delete message from top of stack
@@ -1085,7 +1096,7 @@ int serialPort::deleteSMS()
     }
 }
 
-int serialPort::popReadSMSstack()
+int AbstractedSmsClass::popReadSMSstack()
 {
 
     if (readSMSstackOutIndex>=readSMSinStackIndex){
@@ -1096,7 +1107,7 @@ int serialPort::popReadSMSstack()
     return readSMSstackOutIndex;
 }
 
-int serialPort::deleteAll()
+int AbstractedSmsClass::deleteAll()
 {
 	//wipe the stack, kill all pending messages
 	for (int i = 0; i < (smsSendingStackIndex+1); i++)
@@ -1133,7 +1144,7 @@ int serialPort::deleteAll()
 	return 0;
 }
 
-void serialPort::writeToEngLog(std::string logThisPlease)
+void AbstractedSmsClass::writeToEngLog(std::string logThisPlease)
 {	// lets try open using traditional approach
 	logFile = fopen(ENG_LOG, "a+");
 	fprintf(logFile, "----------------------------------------------------------\n");
@@ -1146,4 +1157,84 @@ void serialPort::writeToEngLog(std::string logThisPlease)
 	fprintf(logFile, "Current local time and date: %s\n", asctime(timeinfo));
 	fprintf(logFile, "%s\n", logThisPlease.c_str());
 	fclose(logFile);
+}
+
+
+void AbstractedSmsClass::sendNextATcommand(void)
+{
+	// this slot will be called from elsewhere,
+	// it will send the next AT command in its list
+	if (!gsmFlags.sendingAtext) // ignore if we are sending text messages out
+	{
+		switch (ATcommand)
+		{
+		case ECHO_OFF:
+			ATE0();
+			// debug send egd
+			//sendNetworkData();
+			break;
+		case TEXT_MODE_ON:
+			CMGF1();
+			break;
+		case VERBOSE_ON:
+			ATV1();
+			break;
+		case DISABLE_AUTO_ANS:
+			ATS0();
+			break;
+		case TEST_SIM_PIN:
+			CPIN();
+			break;
+		case REGISTERED_ON_NET:
+			CREG();
+			break;
+		case SIGNAL_STRENGTH:
+			CSQ();
+			break;
+		case CALLER_ID:
+			CLIP();
+			break;
+		case ENABLE_SMS_NOTIFICATION:
+			CNMI();
+			break;
+		case EXTENDED_INFO_OFF:
+			CRC0();
+			break;
+		case CLEAR_SMS_IN:
+			if (!skipDeleteSMSmemory) 
+			{
+				skipDeleteSMSmemory = true;
+				CMGD_all();
+			}
+			break;
+			
+		case REPEAT_AT_CYCLE:
+			// when this value is reached reset is hit
+			ATcommand = -1;
+			break;
+		}
+		ATcommand++;
+	}
+}
+
+int AbstractedSmsClass::getSignalLevel()
+{
+	// return signal level
+	return gsmFlags.signalStrengthLvL;
+}
+
+
+bool AbstractedSmsClass::isTextCycleFinished(void)
+{
+	return m_textCycleFinished;
+}
+
+void AbstractedSmsClass::setTextCycleFinished(bool b)
+{
+	m_textCycleFinished = b;
+}
+
+void AbstractedSmsClass::checkForIncoming(void)
+{
+
 }
