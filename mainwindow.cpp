@@ -4,7 +4,7 @@
 #include "scenarothread.h"
 #include "contactclass.h"
 #include "abstractedsmsclass.h"
-
+#include "notifierPanel.h"
 
 #include <QDebug>
 
@@ -16,6 +16,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 	m_scenarioIndex = 0;
 	// create a file object for test purposes
 	fileLoader = new FileAccess;
+	// panel object
+	firePanel = new notifierPanel;
 	// devices reg is passed to scenario then object
 	SMSinterface = new AbstractedSmsClass;
 	// lets create a scenario object
@@ -131,6 +133,7 @@ void MainWindow::setUpConnections()
 		SIGNAL(parsedIncomingSMS(QString, QString, QString)),
 		this,
 		SLOT(gotNotificationOfSMS(QString, QString, QString)));
+	connect(firePanel, SIGNAL(callFirePanelEvent(QString,int)), this, SLOT(firePanelFIRE(QString,int)));
 		    // debug trigger from abstraction layer
 	//connect(SMSinterface,
 	//	SIGNAL(triggerDetected(int)),
@@ -413,4 +416,12 @@ void MainWindow::gotNotificationOfSMS(QString DTG, QString ID, QString body)
 		qDebug() << "Hi Larry!";
 		SMSinterface->sendText("+353868072505", "Hi Larry I am alive :-)");
 	}
+}
+
+
+void MainWindow::firePanelFIRE(QString s,int i)
+{
+	// this is linked to the Panel FIRE signal
+	ui->panelFireText->setText(s);
+	qDebug() << "Alarm Number: " << i << " " << s;
 }

@@ -21,7 +21,7 @@
 using namespace std;
 
 #define BODY_SOURCE "USE RS232"
-#define TEXT_FAIL_TIME 15
+#define TEXT_FAIL_TIME 15000
 
 class ContactClass;
 class AbstractedSmsClass;

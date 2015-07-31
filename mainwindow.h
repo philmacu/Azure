@@ -18,6 +18,7 @@ class ScenarioThread;
 class FileAccess;
 class ContactClass;
 class AbstractedSmsClass;
+class notifierPanel;
 
 struct TaskData {
 	QString protocol;
@@ -41,7 +42,9 @@ public : explicit MainWindow(QWidget *parent = 0);
 	ContactClass *pcsContacts;
 	ContactClass *hytContacts;
 	AbstractedSmsClass *SMSinterface;
-
+	notifierPanel *firePanel;
+	QString panelText;
+	
 private:
 	Ui::MainWindow *ui;
 	ScenarioThread *runningScenario;
@@ -71,6 +74,7 @@ private:
 public slots :
 	void gotUpdatedSigLvl(int i);
 	void gotNotificationOfSMS(QString DTG, QString ID, QString body);
+	void firePanelFIRE(QString,int);
 private slots :
 	void checkForNextScenario(void);
 	void updateStatusBar(QString message);
