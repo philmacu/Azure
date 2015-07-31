@@ -239,3 +239,5 @@ azure.vcxproj.filters
 VisualGDBCache/azure-Debug/SourceCache.dat
 *.pro
 gcc_Debug.h
+azure.pro
+azure.pro
