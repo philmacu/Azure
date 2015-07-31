@@ -54,7 +54,7 @@ public:
     bool isCurrentlyLatched() const;
     void setIsCurrentlyLatched(bool isCurrentlyLatched);
 	void linkScenarioToMultipleDevices(AbstractedSmsClass *sms); //increase to allow all interfaces
-	
+	TaskClass *taskControl;
 private:
     QString m_text;
     QString m_name;
@@ -62,7 +62,7 @@ private:
     bool m_stop;
     int m_loop;
     void stopMe(void);
-    TaskClass *taskControl;
+    
     int m_taskThread;
     int priority;
     bool runningState; // true if running;

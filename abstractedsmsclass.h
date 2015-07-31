@@ -168,7 +168,6 @@ public:
 	bool gotAtext;
 	int deleteAll(void); // this is used to completely erase the queue
 	struct gsmFlagStructure gsmFlags;
-	QTimer *CTSneverReleasedTimer;	
 	bool isAlive;
 	char smsNumberBody[300]; // [0] contains number and DTG [1] contains body
 	phoneBookClass *phone_book;	// an instance of our phonebook
@@ -176,8 +175,9 @@ public:
 	int sendText(char*, char*);
 	// some getters and setters
 	int getSignalLevel(void);
-	void setTextCycleFinished(bool b);
+	void killText(void);
 	bool isTextCycleFinished(void);
+	bool getCTSstate(void);
 private:
 	bool m_textCycleFinished;
     int openNonCanonicalUART(void);
@@ -212,8 +212,7 @@ private:
     bool smsRxOverrun;
     QTimer *schedulerTimer;     // will handle events in the stack
     QTimer *ATresponseTimer;
-	QTimer *delayAfterSendTimer;
-    QTimer *lockoutPauseTimer;
+	QTimer *SmsCTSwd;
     char smsSoredInMemory;
     bool  readingSMS;
     bool routinelyDeleteAll; // delete memory
@@ -246,15 +245,13 @@ private:
 	int signalLevel;
 public slots:
 	void ATcommandResponseTimeout(void);
-	void CTSneverReleased(void);
 	void readSerial(void);
 	void sendNextATcommand(void);
-	void checkForIncoming(void);
+
 
 private slots:
     void handleTheStack(void);
-	void delayAfterSend(void);
-    void releaseLockoutPause(void);
+	void forcereleaseCTS(void);
 
 signals:
 	int dataForLog(std::string logThis);

@@ -115,7 +115,7 @@ void MainWindow::setUpConnections()
 		this,
 		SLOT(updateStatusBar(QString)));
 
-		    // timers
+		    // timersSmsCTSwd
 	connect(serviceScenario,SIGNAL(timeout()),this,SLOT(checkForNextScenario()));
 	connect(blankStatusBar,SIGNAL(timeout()),this,SLOT(blankStatusBarText()));
 	connect(readSerialSMS, SIGNAL(timeout()), SMSinterface, SLOT(readSerial()));
@@ -165,7 +165,7 @@ void MainWindow::callNextScenario()
 		}
 		else
 		{
-			ui->labelCurrentScenario->setText("None");
+			ui->labelCurrentScenario->setText("Finished");
 			ui->labelCurrentTask->setText("None");
 			qDebug() << "Scenario queue empty";
 			serviceScenario->stop();
@@ -407,4 +407,10 @@ void MainWindow::gotNotificationOfSMS(QString DTG, QString ID, QString body)
 	// display it
 	ui->caller->setText(ID);
 	ui->smsBody->setText(body);
+	// now check to see if this text is a privlidged user
+	if (!(ID.compare("+353868072505")))
+	{
+		qDebug() << "Hi Larry!";
+		SMSinterface->sendText("+353868072505", "Hi Larry I am alive :-)");
+	}
 }

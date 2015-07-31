@@ -7,20 +7,16 @@ AbstractedSmsClass::AbstractedSmsClass()
 	// allocate resources for a timer to monitor replies
 	// one shot and is only set to run when we send an AT command
 	ATresponseTimer = new QTimer;
-	CTSneverReleasedTimer = new QTimer;
+
     schedulerTimer = new QTimer;
-	delayAfterSendTimer = new QTimer;
-    lockoutPauseTimer = new QTimer;
+	SmsCTSwd = new QTimer;
+	SmsCTSwd->stop();
+	SmsCTSwd->setSingleShot(true);
 	QMainWindow::connect(ATresponseTimer, SIGNAL(timeout()), 
 		this, SLOT(ATcommandResponseTimeout()));
-	QMainWindow::connect(CTSneverReleasedTimer, SIGNAL(timeout()),
-		this, SLOT(CTSneverReleased()));
     QMainWindow::connect(schedulerTimer, SIGNAL(timeout()),
 		this, SLOT(handleTheStack()));
-	QMainWindow::connect(delayAfterSendTimer, SIGNAL(timeout()),
-		this, SLOT(delayAfterSend()));
-    QMainWindow::connect(lockoutPauseTimer, SIGNAL(timeout()),
-        this, SLOT(releaseLockoutPause()));
+	connect(SmsCTSwd, SIGNAL(timeout()), this, SLOT(forcereleaseCTS()));
     // reset the stacks
     smsStackIndex = -1;
 	deleteSMSstackIndex = -1;
@@ -35,12 +31,6 @@ AbstractedSmsClass::AbstractedSmsClass()
 	// single shots
 	ATresponseTimer->setSingleShot(true);
 	ATresponseTimer->stop();
-	CTSneverReleasedTimer->setSingleShot(true);
-	CTSneverReleasedTimer->stop();
-	delayAfterSendTimer->setSingleShot(true);
-	delayAfterSendTimer->stop();
-    lockoutPauseTimer->setSingleShot(true);
-    lockoutPauseTimer->stop();
 	gsmFlags.smsSendFailed = 0; // no failed sms sends
 	smsSendProgress = 0;
 	smsSendingStackIndex = -1;
@@ -55,10 +45,7 @@ AbstractedSmsClass::~AbstractedSmsClass()
 {
 	closeNonCanonicalUART();
 	delete ATresponseTimer;
-	delete CTSneverReleasedTimer;
 	delete schedulerTimer;
-	delete delayAfterSendTimer;
-	delete lockoutPauseTimer;
 	qDebug() << "SMS destrucor completed OK/n";
 }
 
@@ -87,10 +74,7 @@ int AbstractedSmsClass::getAndSendSMSfromStack()
 	
 }
 
-void AbstractedSmsClass::releaseLockoutPause()
-{
 
-}
 
 int AbstractedSmsClass::pushSMSstack(const char *number, char *body)
 {
@@ -134,14 +118,15 @@ void AbstractedSmsClass::ATcommandResponseTimeout(void)
 	ATcommandTimeout = true;
 }
 
-void AbstractedSmsClass::CTSneverReleased(void)
-{
-	// CTS didn't clear and we want to send an sms
-	clearSMSflags();
-}
-
 void AbstractedSmsClass::readSerial()
 {
+	if (gsmFlags.CTS)
+		// switch off CTS WD
+		SmsCTSwd->stop();
+	else
+		// cts is lockout out, start timer, unless already running!!!
+		if(!(SmsCTSwd->isActive())) SmsCTSwd->start(CTS_RELEASE_TIME);
+	// now look for text in.
 	if (gsmFlags.responseExpected)
 	{
 		// so we are waiting dor a response
@@ -686,6 +671,7 @@ int AbstractedSmsClass::sendText(char *destNumber, char *messageToGo){
 	case STAGE_3:
 		// the calling fundtion should be blocked can release it now
 		m_textCycleFinished = true;
+		gsmFlags.responseExpected = false;
 	default:
 		gsmFlags.sendText = STAGE_1;
 		smsSendProgress = 0;
@@ -694,11 +680,6 @@ int AbstractedSmsClass::sendText(char *destNumber, char *messageToGo){
 	return gsmFlags.sendText;
 }
 
-void AbstractedSmsClass::delayAfterSend(void)
-{
-	delayAfterSendTimer->stop();
-	gsmFlags.sendingAtext = false;
-}
 
 void AbstractedSmsClass::sendTextError(void) //error could of occurred at any time how do we handle it
 {
@@ -1018,6 +999,7 @@ void AbstractedSmsClass::resetModemFlags(void){
 	groupIndexPosition = 0;
 	isAlive = false;
 	ATcommand = 0;
+	m_textCycleFinished = true;
 }
 
 void AbstractedSmsClass::clearSMSflags(void)
@@ -1056,21 +1038,23 @@ int AbstractedSmsClass::readText()
 {
 	int result = 0;
     // read message number from top of stack
-	if (gsmFlags.CTS){
-            // first part of sms
-            readingSMS = false; // will go true when we start getting the text from the modem
-            gsmFlags.CTS = false;
-            gsmFlags.deferReadSMS = false;
-            char ATmessageString[] = "AT+CMGR=";
-			char tempId[3];
-            strcat(ATmessageString,messageId[readSMSstackOutIndex]);
-            strcat(ATmessageString,"\r\n");
-            result = write(fd, ATmessageString, strlen(ATmessageString));
-            ATresponseTimer->start(AT_RESPONSE_TIMEOUT);
-            gsmFlags.responseExpected = true;
-            numberOfCR = 0;
-            gsmFlags.allowDeleteAll = true; // next time the stack is empty send delete all command
+	if (gsmFlags.CTS) 
+	{
+        // first part of sms
+		readingSMS = false; // will go true when we start getting the text from the modem
+		gsmFlags.CTS = false;
+		gsmFlags.deferReadSMS = false;
+		char ATmessageString[] = "AT+CMGR=";
+		char tempId[3];
+		strcat(ATmessageString, messageId[readSMSstackOutIndex]);
+		strcat(ATmessageString, "\r\n");
+		result = write(fd, ATmessageString, strlen(ATmessageString));
+		ATresponseTimer->start(AT_RESPONSE_TIMEOUT);
+		gsmFlags.responseExpected = true;
+		numberOfCR = 0;
+		gsmFlags.allowDeleteAll = true; // next time the stack is empty send delete all command
 	}
+
 }
 
 int AbstractedSmsClass::deleteSMS()
@@ -1123,7 +1107,6 @@ int AbstractedSmsClass::deleteAll()
 	groupScanPointer = 0;
 	groupText = false;
 	lockoutDueToPause = false; 
-	delayAfterSendTimer->stop();
 	getNextFromPBook = false;
 
 	// just clear some flags so we can resend text
@@ -1212,6 +1195,11 @@ void AbstractedSmsClass::sendNextATcommand(void)
 			// when this value is reached reset is hit
 			ATcommand = -1;
 			break;
+			
+		//default:
+			// send a reply if we have any
+			
+			
 		}
 		ATcommand++;
 	}
@@ -1229,12 +1217,28 @@ bool AbstractedSmsClass::isTextCycleFinished(void)
 	return m_textCycleFinished;
 }
 
-void AbstractedSmsClass::setTextCycleFinished(bool b)
+void AbstractedSmsClass::killText()
 {
-	m_textCycleFinished = b;
+	m_textCycleFinished = true;
+	gsmFlags.sendText = 0;
+	gsmFlags.responseExpected = false;
+	gsmFlags.CTS = true;
 }
 
-void AbstractedSmsClass::checkForIncoming(void)
-{
 
+
+bool AbstractedSmsClass::getCTSstate(void)
+{
+	// this is used by main as WD
+	return gsmFlags.CTS;
+}
+
+
+
+
+void AbstractedSmsClass::forcereleaseCTS(void)
+{
+	// something went wrong
+	qDebug() << "Force Release of CTS";
+	resetModemFlags();
 }

@@ -6,6 +6,10 @@
 TaskClass::TaskClass(QWidget *parent) : QMainWindow(parent)
 {
     m_kill = false;
+	SmsTextStuckWd = new QTimer;
+	SmsTextStuckWd->stop();
+	SmsTextStuckWd->setSingleShot(true);
+	connect(SmsTextStuckWd, SIGNAL(timeout()), this, SLOT(WDsmsStuck()));
 }
 
 TaskClass::~TaskClass()
@@ -47,10 +51,13 @@ int TaskClass::SMScommand(AbstractedSmsClass *smsDevice, TaskData commandAndData
 		            smsDevice->sendText(number.toUtf8().data(), commandAndData.messageBody.toUtf8().data());
 				// block here until text sent
 	            // need to keep an eye that we dont stay for ever
+	            SmsTextStuckWd->start(TEXT_FAIL_TIME);
+	            m_abortText = false;
 	            while (!smsDevice->isTextCycleFinished())
 	            {
-		            ;   
+		            if (m_abortText) smsDevice->killText();   
 	            }
+	            SmsTextStuckWd->stop();
             }
         }
         else
@@ -62,4 +69,12 @@ int TaskClass::SMScommand(AbstractedSmsClass *smsDevice, TaskData commandAndData
 void TaskClass::killTask()
 {
     m_kill = true;
+}
+
+
+void TaskClass::WDsmsStuck(void)
+{
+	// text never completed sending;
+	m_abortText = true;
+	qDebug() << "Aborting Current Text --- Modem unresponsive!";
 }
