@@ -39,6 +39,7 @@ int notifierPanel::loadSettings()
 	isFitted = true;
 	bool readError;
 	includeInSMS.customText = true;
+	strcpy(panelEvent.custom, "MacU");
 	includeInSMS.ID = true;
 	includeInSMS.loop = true;
 	includeInSMS.PanelDate = true;
@@ -357,6 +358,7 @@ void notifierPanel::parseReceivedData()
 			panelEvent.date[10] = '\0';
 
 			// now build message to go depending on config settings
+
 			if (includeInSMS.customText) strcat(SMStext, panelEvent.custom);
 			if (includeInSMS.ID) {
 				strcat(SMStext, " PANEL:");
@@ -402,11 +404,86 @@ void notifierPanel::parseReceivedData()
 			a 0 allows infinite events from the panel, <0 will switch off messaging
 			*/
 
-			SMStext[0] = ' ';
+			//SMStext[0] = ' ';
 			// all serial passsed, it is up to the scenario to decide if
 			// it is transmitted
 			eventCount++;
-			emit callFirePanelEvent(QString::fromStdString(SMStext),eventCount);
+			QString signalText = QString::fromStdString(SMStext).simplified();
+			//signalText = normalized();
+			emit callFirePanelEvent(signalText, eventCount);
+			inAlarm = true; // used for graphics only
+		}
+		// Fault indication
+		if (strncmp((serialInBuffer + EVENT_OFFSET), "008", 3) == 0){
+			strcpy(panelEvent.event, "Fault");
+			logIt = true;
+			// send type of email to send
+			//emailType = ALARM_MAIL;
+			// transfer info into a structure
+			;
+			for (size_t i = 0; i < parseLength; i++)
+			{
+				if (i >= PANEL_OFFSET & i<EVENT_OFFSET) panelEvent.panel[i - PANEL_OFFSET] = serialInBuffer[i];
+				if (i >= EVENT_TIME_OFFSET & i<LOOP_OFFSET) panelEvent.time[i - EVENT_TIME_OFFSET] = serialInBuffer[i];
+				if (i >= LOOP_OFFSET & i<ZONE_OFFSET) panelEvent.loop[i - LOOP_OFFSET] = serialInBuffer[i];
+				if (i >= ZONE_OFFSET & i<SENSOR_OFFSET) panelEvent.zone[i - ZONE_OFFSET] = serialInBuffer[i];
+				if (i >= SENSOR_OFFSET & i < SENS_ADDR_OFFSET) panelEvent.sensor[i - SENSOR_OFFSET] = serialInBuffer[i];
+				if (i >= SENS_ADDR_OFFSET & i< ANALOGUE_VAL_OFFSET) panelEvent.sensorAddr[i - SENS_ADDR_OFFSET] = serialInBuffer[i];
+				if (i >= ANALOGUE_VAL_OFFSET & i < OFFSET_END) panelEvent.analogVal[i - ANALOGUE_VAL_OFFSET] = serialInBuffer[i];
+				if (i >= TEXT_START & i < (parseLength - 3)) panelEvent.text[i - TEXT_START] = serialInBuffer[i];
+			}
+			// add in NULLS
+			SMStext[0] = '\0'; // clear our sms string
+			panelEvent.panel[2] = '\0';
+			panelEvent.time[6] = '\0';
+			panelEvent.loop[2] = '\0';
+			panelEvent.zone[5] = '\0';
+			panelEvent.sensor[1] = '\0';
+			panelEvent.sensorAddr[2] = '\0';
+			panelEvent.analogVal[3] = '\0';
+			panelEvent.text[((parseLength - 3) - TEXT_START)] = '\0';
+			panelEvent.date[10] = '\0';
+
+			// now build message to go depending on config settings
+			if (includeInSMS.customText) strcat(SMStext, panelEvent.custom);
+			if (includeInSMS.ID) {
+				strcat(SMStext, " PANEL:");
+				strcat(SMStext, panelEvent.panel);
+			}
+			if (includeInSMS.loop) {
+				strcat(SMStext, " Loop:");
+				strcat(SMStext, panelEvent.loop);
+			}
+			if (includeInSMS.zone) {
+				strcat(SMStext, " Zone:");
+				strcat(SMStext, panelEvent.zone);
+			}
+			if (includeInSMS.sensor) {
+				strcat(SMStext, " Sensor:");
+				strcat(SMStext, panelEvent.sensor);
+			}
+			if (includeInSMS.sensorAddr) {
+				strcat(SMStext, " Addr:");
+				strcat(SMStext, panelEvent.sensorAddr);
+			}
+			if (includeInSMS.sensorVal) {
+				strcat(SMStext, " Value:");
+				strcat(SMStext, panelEvent.analogVal);
+			}
+			if (includeInSMS.PanelDate) {
+				strcat(SMStext, " ");
+				strcat(SMStext, panelEvent.date);
+			}
+			if (includeInSMS.panelTime) {
+				strcat(SMStext, " ");
+				strcat(SMStext, panelEvent.time);
+			}
+			if (includeInSMS.panelText) {
+				strcat(SMStext, " ");
+				strcat(SMStext, panelEvent.text);
+			}
+			//SMStext[0] = ' ';
+			emit callFaultPanelEvent(QString::fromStdString(SMStext));
 			inAlarm = true; // used for graphics only
 		}
 		// reset
@@ -417,13 +494,46 @@ void notifierPanel::parseReceivedData()
 			eventCount = 0;
 			logIt = true;
 			inAlarm = false;
-			//emailType = RESET_MAIL;
+			// build custom reset string
+			//QString resetInfo = QString::fromStdString(panelEvent.panel);
+			//resetInfo+= " ";
+			//resetInfo += QString::fromStdString(panelEvent.date);
+			//resetInfo += " ";
+			//resetInfo += QString::fromStdString(panelEvent.time);
+			//emit callResetPanelEvent(resetInfo);
+			////emailType = RESET_MAIL;
 			for (size_t i = 0; i < parseLength; i++)
 			{
 				if (i >= PANEL_OFFSET & i<EVENT_OFFSET) panelEvent.panel[i - PANEL_OFFSET] = serialInBuffer[i];
 				if (i >= EVENT_TIME_OFFSET & i<LOOP_OFFSET) panelEvent.time[i - EVENT_TIME_OFFSET] = serialInBuffer[i];
 			}
+			// build custom reset string
+			QString resetInfo = QString::fromStdString(panelEvent.panel);
+			resetInfo += " ";
+			//resetInfo += QString::fromStdString(panelEvent.date);
+			//resetInfo += " ";
+			resetInfo += QString::fromStdString(panelEvent.time);
+			emit callResetPanelEvent(resetInfo);
 		}
+		// silence bells
+		if (strncmp((serialInBuffer + EVENT_OFFSET), "131", 3) == 0)
+		{
+			strcpy(panelEvent.event, "Silence");
+			logIt = true;
+			for (size_t i = 0; i < parseLength; i++)
+			{
+				if (i >= PANEL_OFFSET & i<EVENT_OFFSET) panelEvent.panel[i - PANEL_OFFSET] = serialInBuffer[i];
+				if (i >= EVENT_TIME_OFFSET & i<LOOP_OFFSET) panelEvent.time[i - EVENT_TIME_OFFSET] = serialInBuffer[i];
+			}
+			// build custom reset string
+			QString resetInfo = QString::fromStdString(panelEvent.panel);
+			resetInfo += " ";
+			//resetInfo += QString::fromStdString(panelEvent.date);
+			//resetInfo += " ";
+			resetInfo += QString::fromStdString(panelEvent.time);
+			emit callSilencePanelEvent(resetInfo);
+		}
+		
 		serialTXtokenFree = true;
 		break;
 	case INFO_MSG:
@@ -494,3 +604,4 @@ int notifierPanel::deleteAll()
 	// simulates a reset
 	eventCount = 0;
 }
+

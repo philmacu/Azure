@@ -56,6 +56,7 @@ void ScenarioThread::run()
             }
             else if  ((poppedTask.protocol == "#SMS#") & !m_stop)
             {
+				poppedTask.panelText = panelText; // this was loaded when fire alarm went off via MainWindow
                 taskControl->SMScommand(smsDevice, poppedTask,smsContactRef);
             }
 

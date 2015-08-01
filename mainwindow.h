@@ -24,6 +24,7 @@ struct TaskData {
 	QString protocol;
 	QChar messageGroup;
 	QString messageBody;
+	QString panelText;
 };
 
 class MainWindow : public QMainWindow
@@ -60,7 +61,7 @@ private:
 	int queueScenario(ScenarioThread *scenario); // the generic scenario loader
 	void setUpConnections(void);   // use to link signals to slots
 	void testAndReset(ScenarioThread *s, QChar c); // test and reset the latch flag
-	public slots :
+public slots :
 	void queueFire(void);
 	void queueSoft(void);
 	void queueManDown(void);
@@ -71,10 +72,12 @@ private:
 	void blankStatusBarText(void);
 	void simulateEndOfTask(void);
 	void passRefOfDevicesToScenario(void);
-public slots :
 	void gotUpdatedSigLvl(int i);
 	void gotNotificationOfSMS(QString DTG, QString ID, QString body);
 	void firePanelFIRE(QString,int);
+	void firePanelReset(QString);
+	void firePanelFault(QString);
+	void firePanelSilence(QString);
 private slots :
 	void checkForNextScenario(void);
 	void updateStatusBar(QString message);

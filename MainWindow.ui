@@ -69,9 +69,9 @@
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>520</x>
-      <y>190</y>
-      <width>311</width>
+      <x>570</x>
+      <y>110</y>
+      <width>241</width>
       <height>131</height>
      </rect>
     </property>
@@ -84,10 +84,10 @@
     <widget class="QLabel" name="label">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>16</x>
        <y>70</y>
-       <width>47</width>
-       <height>13</height>
+       <width>51</width>
+       <height>20</height>
       </rect>
      </property>
      <property name="text">
@@ -126,10 +126,10 @@
     <widget class="QLabel" name="label_2">
      <property name="geometry">
       <rect>
-       <x>20</x>
+       <x>-4</x>
        <y>30</y>
-       <width>47</width>
-       <height>13</height>
+       <width>71</width>
+       <height>20</height>
       </rect>
      </property>
      <property name="text">
@@ -158,7 +158,7 @@
      <rect>
       <x>20</x>
       <y>330</y>
-      <width>471</width>
+      <width>381</width>
       <height>111</height>
      </rect>
     </property>
@@ -217,8 +217,8 @@
    <widget class="QLabel" name="panelFireText">
     <property name="geometry">
      <rect>
-      <x>220</x>
-      <y>210</y>
+      <x>330</x>
+      <y>70</y>
       <width>221</width>
       <height>71</height>
      </rect>
@@ -231,6 +231,16 @@
     </property>
     <property name="wordWrap">
      <bool>true</bool>
+    </property>
+   </widget>
+   <widget class="QListWidget" name="listFires">
+    <property name="geometry">
+     <rect>
+      <x>420</x>
+      <y>331</y>
+      <width>401</width>
+      <height>111</height>
+     </rect>
     </property>
    </widget>
   </widget>

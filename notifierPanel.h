@@ -130,4 +130,7 @@ private slots:
 
 signals:
 	void callFirePanelEvent(QString,int); // text and number of alarms
+	void callResetPanelEvent(QString); // DTGof reset?
+	void callFaultPanelEvent(QString);
+	void callSilencePanelEvent(QString);
 };

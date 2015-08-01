@@ -55,6 +55,7 @@ public:
     void setIsCurrentlyLatched(bool isCurrentlyLatched);
 	void linkScenarioToMultipleDevices(AbstractedSmsClass *sms); //increase to allow all interfaces
 	TaskClass *taskControl;
+	QString panelText;
 private:
     QString m_text;
     QString m_name;

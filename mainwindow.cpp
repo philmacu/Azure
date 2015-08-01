@@ -8,8 +8,7 @@
 
 #include <QDebug>
 
-MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
-	, ui(new Ui::MainWindow)
+MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow)
 {
 	ui->setupUi(this);
 	m_scenarioRunning = false;
@@ -129,12 +128,15 @@ void MainWindow::setUpConnections()
 	
 	// signals for the UI
 	connect(SMSinterface,SIGNAL(signalLevelIs(int)), this, SLOT(gotUpdatedSigLvl(int)));
-	connect(SMSinterface,
-		SIGNAL(parsedIncomingSMS(QString, QString, QString)),
-		this,
-		SLOT(gotNotificationOfSMS(QString, QString, QString)));
+	connect(SMSinterface,SIGNAL(parsedIncomingSMS(QString, QString, QString)),
+		this,SLOT(gotNotificationOfSMS(QString, QString, QString)));
+
+	// connections from fire panel triggers
 	connect(firePanel, SIGNAL(callFirePanelEvent(QString,int)), this, SLOT(firePanelFIRE(QString,int)));
-		    // debug trigger from abstraction layer
+	connect(firePanel, SIGNAL(callResetPanelEvent(QString)), this, SLOT(firePanelReset(QString)));
+	connect(firePanel, SIGNAL(callFaultPanelEvent(QString)), this, SLOT(firePanelFault(QString)));
+	connect(firePanel, SIGNAL(callSilencePanelEvent(QString)), this, SLOT(firePanelSilence(QString)));
+
 	//connect(SMSinterface,
 	//	SIGNAL(triggerDetected(int)),
 	//	this,
@@ -418,10 +420,30 @@ void MainWindow::gotNotificationOfSMS(QString DTG, QString ID, QString body)
 	}
 }
 
-
+// triggers in --- need to call scenarios, one for each
 void MainWindow::firePanelFIRE(QString s,int i)
 {
 	// this is linked to the Panel FIRE signal
-	ui->panelFireText->setText(s);
 	qDebug() << "Alarm Number: " << i << " " << s;
+	ui->listFires->addItem(s);
+	panelText = s;
+	// now call the Fire Scenario
+	firePanelScenario->panelText = panelText;
+	queueFire();
+}
+
+void MainWindow::firePanelReset(QString)
+{
+	// clear fire list
+	ui->listFires->clear();
+}
+
+void MainWindow::firePanelFault(QString)
+{
+
+}
+
+void MainWindow::firePanelSilence(QString)
+{
+
 }

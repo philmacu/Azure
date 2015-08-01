@@ -46,7 +46,7 @@ int TaskClass::SMScommand(AbstractedSmsClass *smsDevice, TaskData commandAndData
                 number = numberName.mid((nameEndsAt+1),numberName.length());
                 qDebug() << number << " " << name;
                 if (commandAndData.messageBody == BODY_SOURCE)
-		            smsDevice->sendText(number.toUtf8().data(), "Serial Panel Text");
+		            smsDevice->sendText(number.toUtf8().data(), commandAndData.panelText.toUtf8().data());
                 else
 		            smsDevice->sendText(number.toUtf8().data(), commandAndData.messageBody.toUtf8().data());
 				// block here until text sent
