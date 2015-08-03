@@ -10,6 +10,9 @@
 #include <QStringList>
 #include <QListIterator>
 
+#define ALARM_STATUS_PAGE 0
+#define FAULTS_PAGE 1
+
 namespace Ui {
 	class MainWindow;
 }
@@ -39,6 +42,8 @@ public : explicit MainWindow(QWidget *parent = 0);
 	ScenarioThread *touchButtonScenario;
 	ScenarioThread *firePanelScenario;
 	ScenarioThread *firePanelResetScenario;
+	ScenarioThread *firePanelFaultScenario;
+	ScenarioThread *firePanelSilenceScenario;
 	FileAccess *fileLoader;
 	ContactClass *smsContacts;
 	ContactClass *pcsContacts;
@@ -58,10 +63,12 @@ private:
 	QTimer *blankStatusBar;
 	QTimer *readSerialSMS;
 	QTimer *sendATcommand;
+	void initaliseGraphics(void);
 	int loadConfigFiles(void);
 	int queueScenario(ScenarioThread *scenario); // the generic scenario loader
 	void setUpConnections(void);   // use to link signals to slots
 	void testAndReset(ScenarioThread *s, QChar c); // test and reset the latch flag
+	bool m_bellsSilenced; // goes high when rx's a trigger, cleared on alarm or reset
 public slots :
 	void queueFire(void);
 	void queueSoft(void);
