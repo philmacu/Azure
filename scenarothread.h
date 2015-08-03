@@ -27,7 +27,8 @@ public:
     void setName(QString name);
     QString getName(void);
     QString getCurrentAskName(void);
-
+	void setSerialBoilerText(QString s);
+	QString getSerialBoilerText(void);
     //QVector<QString> taskVector;
     QVector<TaskData> taskVector;
     bool debugLockoutTask;
@@ -50,7 +51,8 @@ public:
     bool getIfLatchable(void);
     QChar getResetByGroup(void);
     QChar getResetsGroup(void);
-
+	bool getCanBePaused(void);
+	void setCanBePaused(bool b);
     bool isCurrentlyLatched() const;
     void setIsCurrentlyLatched(bool isCurrentlyLatched);
 	void linkScenarioToMultipleDevices(AbstractedSmsClass *sms); //increase to allow all interfaces
@@ -60,6 +62,7 @@ private:
     QString m_text;
     QString m_name;
     QString m_currentTaskName; // INFO FOR UI
+	QString m_serialBoilerText; // for subsequent serial messages
     bool m_stop;
     int m_loop;
     void stopMe(void);
@@ -73,6 +76,7 @@ private:
     bool m_isCurrentlyLatched;
     QChar m_resetsGroup;
     QChar m_isResetBy;
+	bool m_canBePaused;
 signals:
    void sendTaskName(QString);
    void sendScenarioName(QString);

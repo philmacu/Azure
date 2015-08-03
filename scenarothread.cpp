@@ -178,6 +178,26 @@ void ScenarioThread::setIfLatchable(bool b)
     m_latchable = b;
 }
 
+void ScenarioThread::setSerialBoilerText(QString s)
+{
+	m_serialBoilerText = s;
+}
+
+QString ScenarioThread::getSerialBoilerText(void)
+{
+	return m_serialBoilerText;
+}
+
+bool ScenarioThread::getCanBePaused(void)
+{
+	return m_canBePaused;
+}
+
+void ScenarioThread::setCanBePaused(bool b)
+{
+	m_canBePaused = b;
+}
+
 // slots
 
 

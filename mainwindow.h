@@ -38,6 +38,7 @@ public : explicit MainWindow(QWidget *parent = 0);
 	QString m_string;
 	ScenarioThread *touchButtonScenario;
 	ScenarioThread *firePanelScenario;
+	ScenarioThread *firePanelResetScenario;
 	FileAccess *fileLoader;
 	ContactClass *smsContacts;
 	ContactClass *pcsContacts;

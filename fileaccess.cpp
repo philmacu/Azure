@@ -257,6 +257,16 @@ int FileAccess::loadScenarioConfig()
     else
         m_loadedScenario->setIfLatchable(false);
 
+	// can we pause it?
+	indexFoundKeyAt = m_fileText.indexOf("CAN PAUSE:");
+	if (indexFoundKeyAt > -1)
+		yesOrNo = m_fileText[(indexFoundKeyAt + 10)];
+	if ((yesOrNo == 'y') | (yesOrNo == 'Y'))
+		m_loadedScenario->setCanBePaused(true);
+	else
+		m_loadedScenario->setCanBePaused(false);
+
+
     // now get the chras for the reset groups
     indexFoundKeyAt = m_fileText.indexOf("RESET BY:");
     if (indexFoundKeyAt > -1)
@@ -266,8 +276,24 @@ int FileAccess::loadScenarioConfig()
     if (indexFoundKeyAt > -1)
         m_loadedScenario->setResetsGroup(m_fileText[(indexFoundKeyAt+10)]);
 
+	// boiler plate used if we have more than 1 serial message
+	fileNameStart = m_fileText.indexOf("RS232 DEFAULT:'");
+	if (fileNameStart > -1)
+	{
+		// lets find the test
+		fileNameStart += 15;
+		int fileNameEnd = m_fileText.indexOf("'", fileNameStart);
+		if ((fileNameEnd - fileNameStart) > 100)
+		{
+			emit statusUpdate("Serial default text is too long!!!");
+			m_loadedScenario->setSerialBoilerText("Serial Text too long, should be less than 100 characters");
+		}
+		else
+			m_loadedScenario->setSerialBoilerText(m_fileText.mid(fileNameStart, (fileNameEnd - fileNameStart)));
+	}
 
-    return 1;
+	return 1;
+
 }
 
 
