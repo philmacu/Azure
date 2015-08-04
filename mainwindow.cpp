@@ -4,7 +4,8 @@
 #include "scenarothread.h"
 #include "contactclass.h"
 #include "abstractedsmsclass.h"
-#include "notifierPanel.h"
+//#include "notifierPanel.h"
+#include "zitonClass.h"
 
 #include <QDebug>
 
@@ -17,7 +18,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 	// create a file object for test purposes
 	fileLoader = new FileAccess;
 	// panel object
-	firePanel = new notifierPanel;
+	firePanel = new zitonClass;
 	// devices reg is passed to scenario then object
 	SMSinterface = new AbstractedSmsClass;
 	// lets create a scenario object

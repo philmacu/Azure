@@ -22,6 +22,7 @@ class FileAccess;
 class ContactClass;
 class AbstractedSmsClass;
 class notifierPanel;
+class zitonClass;
 
 struct TaskData {
 	QString protocol;
@@ -49,7 +50,7 @@ public : explicit MainWindow(QWidget *parent = 0);
 	ContactClass *pcsContacts;
 	ContactClass *hytContacts;
 	AbstractedSmsClass *SMSinterface;
-	notifierPanel *firePanel;
+	zitonClass *firePanel;
 	QString panelText;
 	
 private:
