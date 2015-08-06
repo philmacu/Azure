@@ -9,9 +9,12 @@
 #include <QListWidget>
 #include <QStringList>
 #include <QListIterator>
+#include <QFile>
+#include <QTextStream>
 
 #define ALARM_STATUS_PAGE 0
 #define FAULTS_PAGE 1
+
 
 namespace Ui {
 	class MainWindow;
@@ -23,6 +26,7 @@ class ContactClass;
 class AbstractedSmsClass;
 class notifierPanel;
 class zitonClass;
+class LogClass;
 
 struct TaskData {
 	QString protocol;
@@ -45,6 +49,8 @@ public : explicit MainWindow(QWidget *parent = 0);
 	ScenarioThread *firePanelResetScenario;
 	ScenarioThread *firePanelFaultScenario;
 	ScenarioThread *firePanelSilenceScenario;
+	ScenarioThread *firePanelEvacuateScenario;
+	ScenarioThread *lockoutKey;
 	FileAccess *fileLoader;
 	ContactClass *smsContacts;
 	ContactClass *pcsContacts;
@@ -52,7 +58,7 @@ public : explicit MainWindow(QWidget *parent = 0);
 	AbstractedSmsClass *SMSinterface;
 	zitonClass *firePanel;
 	QString panelText;
-	
+	LogClass *theLogs;
 private:
 	Ui::MainWindow *ui;
 	ScenarioThread *runningScenario;
@@ -70,13 +76,17 @@ private:
 	void setUpConnections(void);   // use to link signals to slots
 	void testAndReset(ScenarioThread *s, QChar c); // test and reset the latch flag
 	bool m_bellsSilenced; // goes high when rx's a trigger, cleared on alarm or reset
+	bool m_keyLockOut;
+	bool m_panelLinkOk;
+	bool m_smsLinkOk;
+	bool m_hagenLinkOk;
 public slots :
 	void queueFire(void);
 	void queueSoft(void);
 	void queueManDown(void);
 	void pushAckPressed();
 	void incomingTaskName(QString);
-	void incomingScenarioName(QString);
+	void incomingScenarioTaskInfo(QString);
 	void scenarioFinished(void);
 	void blankStatusBarText(void);
 	void simulateEndOfTask(void);
@@ -87,6 +97,11 @@ public slots :
 	void firePanelReset(QString);
 	void firePanelFault(QString);
 	void firePanelSilence(QString);
+	void firePanelEvacuate(QString);
+	bool getKeyLockoutState(void);
+	void setKeyLockoutState(bool b);
+	void peripheralFail(QString s, int i); // a peripheral device has died
+	void clearSystemFaults(void);
 private slots :
 	void checkForNextScenario(void);
 	void updateStatusBar(QString message);

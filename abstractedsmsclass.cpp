@@ -609,7 +609,7 @@ void AbstractedSmsClass::handleExpectedResponse()
 
 int AbstractedSmsClass::sendText(char *destNumber, char *messageToGo){
 	// MULTIPART SEQUENCE	
-	
+	emit pleaseLogThis("Sending SMS to: " + QString::fromStdString(destNumber));
 	char ATmessageString[200];
 	int result;
 	smsSendProgress++;

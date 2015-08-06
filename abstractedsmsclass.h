@@ -258,6 +258,7 @@ signals:
 	void requestCompleteReset(std::string identifier);
 	void signalLevelIs(int i);
 	void parsedIncomingSMS(QString DTG, QString callerId, QString body);
+	void pleaseLogThis(QString);
 };
 
 #endif 

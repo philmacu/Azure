@@ -78,3 +78,4 @@ void TaskClass::WDsmsStuck(void)
 	m_abortText = true;
 	qDebug() << "Aborting Current Text --- Modem unresponsive!";
 }
+

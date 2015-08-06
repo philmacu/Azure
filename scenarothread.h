@@ -79,7 +79,7 @@ private:
 	bool m_canBePaused;
 signals:
    void sendTaskName(QString);
-   void sendScenarioName(QString);
+   void sendScenarioTaskInfo(QString);
    void notifyScenarioFinished(void);
    void scenarioIssuingReset(QChar resetGroup);
 

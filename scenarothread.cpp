@@ -13,6 +13,7 @@ ScenarioThread::ScenarioThread():QThread()
     m_loop = 0;
     taskControl = new TaskClass;
     m_isCurrentlyLatched = false;
+	connect(taskControl, SIGNAL(tastaskText(QString)), this, SLOT(catchTaskText(QString)));
 }
 
 ScenarioThread::~ScenarioThread()
@@ -33,7 +34,7 @@ void ScenarioThread::run()
         runningState = true;
         m_stop = false;
         qDebug() << "running scenario " << m_name;
-        emit sendScenarioName(m_name);
+        emit sendScenarioTaskInfo(m_name);
         // first thing we do is emit a reset signal to any group that cares
         emit scenarioIssuingReset(m_resetsGroup);
         qDebug() <<"Emitted a reset: " << m_resetsGroup;
@@ -51,20 +52,29 @@ void ScenarioThread::run()
 
             if ((poppedTask.protocol == "#PCS#") & !m_stop)
             {
+				emit sendScenarioTaskInfo("---> Paging: " + (poppedTask.messageBody) +
+					" : To group " + (poppedTask.messageGroup));
                 taskControl->PCScommand(poppedTask,pcsContactRef);
+				emit  sendScenarioTaskInfo("--->Page Sent To Group ");
                 sleep(2);
             }
             else if  ((poppedTask.protocol == "#SMS#") & !m_stop)
             {
 				poppedTask.panelText = panelText; // this was loaded when fire alarm went off via MainWindow
+				if (poppedTask.messageBody == BODY_SOURCE)
+					emit sendScenarioTaskInfo("---> Sending a Text :" + (poppedTask.panelText) +
+					" : To group " + (poppedTask.messageGroup));
+				else
+					emit sendScenarioTaskInfo("---> Sending a Text :" + (poppedTask.messageBody) +
+					" : To group " + (poppedTask.messageGroup));
                 taskControl->SMScommand(smsDevice, poppedTask,smsContactRef);
+				emit  sendScenarioTaskInfo("--->Text Sent To Group ");
             }
-
 
             // task is finished
         }
         m_stop = true;
-        qDebug() << "No More tasks";
+		emit sendScenarioTaskInfo(m_name + " has finished.");
         // let everyone know scenario is finished
         emit notifyScenarioFinished();
         scenarioMutex.unlock();
@@ -199,8 +209,6 @@ void ScenarioThread::setCanBePaused(bool b)
 }
 
 // slots
-
-
 
 
 

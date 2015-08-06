@@ -12,23 +12,35 @@ zitonClass::zitonClass()
 	serialInTimer = new QTimer;
 	serialErrorTimer = new QTimer;
 	serialInTimeout = new QTimer;
-	QMainWindow::connect(heartbeatTimer, SIGNAL(timeout()),
-		this, SLOT(sendHeartbeat()));
+	secondBlkTimeout = new QTimer;
+	linkFail = new QTimer;
+	//QMainWindow::connect(heartbeatTimer, SIGNAL(timeout()),
+	//	this, SLOT(sendHeartbeat()));
 	QMainWindow::connect(serialInTimer, SIGNAL(timeout()),
 		this, SLOT(testForSerialIn()));
 	QMainWindow::connect(serialErrorTimer, SIGNAL(timeout()),
 		this, SLOT(timerSerialTimeOut()));
 	QMainWindow::connect(serialInTimeout, SIGNAL(timeout()),
 		this, SLOT(inputTimedOut()));
+	QMainWindow::connect(secondBlkTimeout, SIGNAL(timeout()),
+		this, SLOT(secondBlockMissing(void)));
+	QMainWindow::connect(linkFail, SIGNAL(timeout()),
+		this, SLOT(panelLinkFail(void)));
+
 	heartbeatTimer->start(HEARTBEAT_RATE);
 	serialInTimer->start(READ_INPUT_BUFFER_RATE);
 	serialErrorTimer->setSingleShot(true);
 	serialErrorTimer->stop();
 	serialInTimeout->setSingleShot(true);
 	serialInTimeout->stop();
+	secondBlkTimeout->setSingleShot(true);
+	secondBlkTimeout->stop();
+	linkFail->setSingleShot(true);
+	linkFail->start(LINK_FAIL);
 	systemTimeUpdate = false;
 	serialTXtokenFree = true;
 	eventCount = 0;
+	serialInindex = 0;
 	isAlive = false;
 	inAlarm = false;
 }
@@ -43,7 +55,8 @@ int zitonClass::loadSettings()
 	isFitted = true;
 	bool readError;
 	includeInSMS.customText = true;
-	strcpy(panelEvent.custom, "MacU");
+	panelEvent.custom="MacU";
+	panelEvent.blocksFilled = 0;
 	includeInSMS.ID = true;
 	includeInSMS.loop = true;
 	includeInSMS.PanelDate = true;
@@ -82,6 +95,8 @@ void zitonClass::testForSerialIn()
 		res = read(fd, buf, 1);
 		if (res > 0)
 		{
+			// have serial ---
+			linkFail->start(LINK_FAIL); // reset the clock, connection in mainW
 			switch (buf[0])
 			{
 			case '\0':
@@ -143,6 +158,7 @@ void zitonClass::testForSerialIn()
 			m_readSerial = false;
 			emit timerSerialTimeOut();
 			qDebug() << "Missed end of serial input";
+			timeout = 0;
 		}
 	}
 }
@@ -239,16 +255,20 @@ int zitonClass::sendSerialMessage(int messageCode)
 		break;
 	case ACK:
 		// send an ack
-		strcpy(messageToSend, ">IACK\r");
+		// should parse, this is done by adding the ascii value
+		// which for this code is 296
+		strcpy(messageToSend, "x00100100296x");
+		messageToSend[0] = 0x06;
+		messageToSend[12] = 0x04;
 		result = ACK;
 		break;
 	case HEARTBEAT:
 		// send a heartbeat, we will expect a response
-		strcpy(messageToSend, ">IQS\r");
+		/*strcpy(messageToSend, ">IQS\r");
 		serialTXtokenFree = false;
 		result = HEARTBEAT;
 		startTimer = true;
-		break;
+		break;*/
 	case GET_PANEL_TIME:
 		// send string that will result in panel sending back time
 		strcpy(messageToSend, ">IQI0\r");
@@ -276,298 +296,72 @@ void zitonClass::parseReceivedData()
 	int whatWasThat = 0; // if >0 we will send a NAK, but only do so a fixed amount of times
 	int sendresult, msgType = 0;;
 	bool logIt = false, gotNAK;
-	char DTGstring[100];
-	FILE *logFile;
-	int parseLength = strlen(serialInBuffer);
-	if (strncmp(serialInBuffer, ">IACK", 5) == 0)
+	sendSerialMessage(ACK);
+	// lets check for an evacuate
+	if ((serialInBuffer[11] == '0')&((serialInBuffer[12] == '3'))&(serialInBuffer[13] == '8'))
 	{
-		//cout << "That was an ACK\n";
-		serialTXtokenFree = true;
-		gotNAK = false;
-		return;
+		// single part message
+		QString temp = QString::fromStdString(serialInBuffer);
+		qDebug() << " Fire Panel Parsed: " << temp;
+		emit callEvacuatePanelEvent("Evacuation");
 	}
-	if (strncmp(serialInBuffer, ">IN", 3) == 0)
+	else if ((serialInBuffer[11] == '0')&((serialInBuffer[12] == '4'))&(serialInBuffer[13] == '1'))
 	{
-		//cout << "That was an NAK\n";
-		serialTXtokenFree = true;
-		gotNAK = true;
-		return;
-	}
-	// what type of message is it
-	switch (serialInBuffer[MSG_TYPE_OFFSET])
-	{
-	case EVENT_MSG:
-		// test for fire message
-		if (strncmp((serialInBuffer + EVENT_OFFSET), "001", 3) == 0){
-			strcpy(panelEvent.event, "Fire");
-			logIt = true;
-			// send type of email to send
-			//emailType = ALARM_MAIL;
-			// transfer info into a structure
-			;
-			for (size_t i = 0; i < parseLength; i++)
-			{
-				if (i >= PANEL_OFFSET & i<EVENT_OFFSET) panelEvent.panel[i - PANEL_OFFSET] = serialInBuffer[i];
-				if (i >= EVENT_TIME_OFFSET & i<LOOP_OFFSET) panelEvent.time[i - EVENT_TIME_OFFSET] = serialInBuffer[i];
-				if (i >= LOOP_OFFSET & i<ZONE_OFFSET) panelEvent.loop[i - LOOP_OFFSET] = serialInBuffer[i];
-				if (i >= ZONE_OFFSET & i<SENSOR_OFFSET) panelEvent.zone[i - ZONE_OFFSET] = serialInBuffer[i];
-				if (i >= SENSOR_OFFSET & i < SENS_ADDR_OFFSET) panelEvent.sensor[i - SENSOR_OFFSET] = serialInBuffer[i];
-				if (i >= SENS_ADDR_OFFSET & i< ANALOGUE_VAL_OFFSET) panelEvent.sensorAddr[i - SENS_ADDR_OFFSET] = serialInBuffer[i];
-				if (i >= ANALOGUE_VAL_OFFSET & i < OFFSET_END) panelEvent.analogVal[i - ANALOGUE_VAL_OFFSET] = serialInBuffer[i];
-				if (i >= TEXT_START & i < (parseLength - 3)) panelEvent.text[i - TEXT_START] = serialInBuffer[i];
-			}
-			// add in NULLS
-			SMStext[0] = '\0'; // clear our sms string
-			panelEvent.panel[2] = '\0';
-			panelEvent.time[6] = '\0';
-			panelEvent.loop[2] = '\0';
-			panelEvent.zone[5] = '\0';
-			panelEvent.sensor[1] = '\0';
-			panelEvent.sensorAddr[2] = '\0';
-			panelEvent.analogVal[3] = '\0';
-			panelEvent.text[((parseLength - 3) - TEXT_START)] = '\0';
-			panelEvent.date[10] = '\0';
+		// this is a two block piece
+		if (!panelEvent.blocksFilled)
+		{
+			// first block
+			QString temp = QString::fromStdString(serialInBuffer);
+			int startPostition = temp.indexOf(0x09);
+			int endPosition = temp.indexOf(0x03);
+			//get time and other vars
+			panelEvent.time = temp.mid(42, 2) + ":" + temp.mid(45, 2);
+			panelEvent.zone = temp.mid(23, 3);
+			panelEvent.addr = temp.mid(20, 3);
+			panelEvent.block1text = panelEvent.custom + " " + "Panel Time ("
+				+panelEvent.time +") Zone:" + panelEvent.zone +
+				" Addr:" + panelEvent.addr + " " 
+				+ temp.mid(startPostition, ((endPosition - startPostition)));
+			panelEvent.block1text.remove(QChar(0x7f));
+			panelEvent.block1text = panelEvent.block1text.simplified();
 
-			// now build message to go depending on config settings
-
-			if (includeInSMS.customText) strcat(SMStext, panelEvent.custom);
-			if (includeInSMS.ID) {
-				strcat(SMStext, " PANEL:");
-				strcat(SMStext, panelEvent.panel);
-			}
-			if (includeInSMS.loop) {
-				strcat(SMStext, " Loop:");
-				strcat(SMStext, panelEvent.loop);
-			}
-			if (includeInSMS.zone) {
-				strcat(SMStext, " Zone:");
-				strcat(SMStext, panelEvent.zone);
-			}
-			if (includeInSMS.sensor) {
-				strcat(SMStext, " Sensor:");
-				strcat(SMStext, panelEvent.sensor);
-			}
-			if (includeInSMS.sensorAddr) {
-				strcat(SMStext, " Addr:");
-				strcat(SMStext, panelEvent.sensorAddr);
-			}
-			if (includeInSMS.sensorVal) {
-				strcat(SMStext, " Value:");
-				strcat(SMStext, panelEvent.analogVal);
-			}
-			if (includeInSMS.PanelDate) {
-				strcat(SMStext, " ");
-				strcat(SMStext, panelEvent.date);
-			}
-			if (includeInSMS.panelTime) {
-				strcat(SMStext, " ");
-				strcat(SMStext, panelEvent.time);
-			}
-			if (includeInSMS.panelText) {
-				strcat(SMStext, " ");
-				strcat(SMStext, panelEvent.text);
-			}
-			// lets try to emit a signal,
-			/*
-			This will only be allowed if we havent exceeded the number of events that 
-			we are allowing before a reset, for the panels, the count is reset by either
-			a panel reset or the master reset, the deleteAll() routine
-			a 0 allows infinite events from the panel, <0 will switch off messaging
-			*/
-
-			//SMStext[0] = ' ';
-			// all serial passsed, it is up to the scenario to decide if
-			// it is transmitted
+			// movee to next block, start timer, fire it off if 2nd does not arrive
+			secondBlkTimeout->start(SECOND_BLK_TIMEOUT);
+			panelEvent.blocksFilled = 1;
 			eventCount++;
-			QString signalText = QString::fromStdString(SMStext).simplified();
-			//signalText = normalized();
-			emit callFirePanelEvent(signalText, eventCount);
-			inAlarm = true; // used for graphics only
 		}
-		// Fault indication
-		if (strncmp((serialInBuffer + EVENT_OFFSET), "008", 3) == 0){
-			strcpy(panelEvent.event, "Fault");
-			logIt = true;
-			// send type of email to send
-			//emailType = ALARM_MAIL;
-			// transfer info into a structure
-			;
-			for (size_t i = 0; i < parseLength; i++)
-			{
-				if (i >= PANEL_OFFSET & i<EVENT_OFFSET) panelEvent.panel[i - PANEL_OFFSET] = serialInBuffer[i];
-				if (i >= EVENT_TIME_OFFSET & i<LOOP_OFFSET) panelEvent.time[i - EVENT_TIME_OFFSET] = serialInBuffer[i];
-				if (i >= LOOP_OFFSET & i<ZONE_OFFSET) panelEvent.loop[i - LOOP_OFFSET] = serialInBuffer[i];
-				if (i >= ZONE_OFFSET & i<SENSOR_OFFSET) panelEvent.zone[i - ZONE_OFFSET] = serialInBuffer[i];
-				if (i >= SENSOR_OFFSET & i < SENS_ADDR_OFFSET) panelEvent.sensor[i - SENSOR_OFFSET] = serialInBuffer[i];
-				if (i >= SENS_ADDR_OFFSET & i< ANALOGUE_VAL_OFFSET) panelEvent.sensorAddr[i - SENS_ADDR_OFFSET] = serialInBuffer[i];
-				if (i >= ANALOGUE_VAL_OFFSET & i < OFFSET_END) panelEvent.analogVal[i - ANALOGUE_VAL_OFFSET] = serialInBuffer[i];
-				if (i >= TEXT_START & i < (parseLength - 3)) panelEvent.text[i - TEXT_START] = serialInBuffer[i];
-			}
-			// add in NULLS
-			SMStext[0] = '\0'; // clear our sms string
-			panelEvent.panel[2] = '\0';
-			panelEvent.time[6] = '\0';
-			panelEvent.loop[2] = '\0';
-			panelEvent.zone[5] = '\0';
-			panelEvent.sensor[1] = '\0';
-			panelEvent.sensorAddr[2] = '\0';
-			panelEvent.analogVal[3] = '\0';
-			panelEvent.text[((parseLength - 3) - TEXT_START)] = '\0';
-			panelEvent.date[10] = '\0';
-
-			// now build message to go depending on config settings
-			if (includeInSMS.customText) strcat(SMStext, panelEvent.custom);
-			if (includeInSMS.ID) {
-				strcat(SMStext, " PANEL:");
-				strcat(SMStext, panelEvent.panel);
-			}
-			if (includeInSMS.loop) {
-				strcat(SMStext, " Loop:");
-				strcat(SMStext, panelEvent.loop);
-			}
-			if (includeInSMS.zone) {
-				strcat(SMStext, " Zone:");
-				strcat(SMStext, panelEvent.zone);
-			}
-			if (includeInSMS.sensor) {
-				strcat(SMStext, " Sensor:");
-				strcat(SMStext, panelEvent.sensor);
-			}
-			if (includeInSMS.sensorAddr) {
-				strcat(SMStext, " Addr:");
-				strcat(SMStext, panelEvent.sensorAddr);
-			}
-			if (includeInSMS.sensorVal) {
-				strcat(SMStext, " Value:");
-				strcat(SMStext, panelEvent.analogVal);
-			}
-			if (includeInSMS.PanelDate) {
-				strcat(SMStext, " ");
-				strcat(SMStext, panelEvent.date);
-			}
-			if (includeInSMS.panelTime) {
-				strcat(SMStext, " ");
-				strcat(SMStext, panelEvent.time);
-			}
-			if (includeInSMS.panelText) {
-				strcat(SMStext, " ");
-				strcat(SMStext, panelEvent.text);
-			}
-			//SMStext[0] = ' ';
-			emit callFaultPanelEvent(QString::fromStdString(SMStext));
-			inAlarm = true; // used for graphics only
-		}
-		// reset
-		if (strncmp((serialInBuffer + EVENT_OFFSET), "129", 3) == 0)
+		else
 		{
-			strcpy(panelEvent.event, "Reset");
-			// reset the event count
-			eventCount = 0;
-			logIt = true;
-			inAlarm = false;
-			// build custom reset string
-			//QString resetInfo = QString::fromStdString(panelEvent.panel);
-			//resetInfo+= " ";
-			//resetInfo += QString::fromStdString(panelEvent.date);
-			//resetInfo += " ";
-			//resetInfo += QString::fromStdString(panelEvent.time);
-			//emit callResetPanelEvent(resetInfo);
-			////emailType = RESET_MAIL;
-			for (size_t i = 0; i < parseLength; i++)
-			{
-				if (i >= PANEL_OFFSET & i<EVENT_OFFSET) panelEvent.panel[i - PANEL_OFFSET] = serialInBuffer[i];
-				if (i >= EVENT_TIME_OFFSET & i<LOOP_OFFSET) panelEvent.time[i - EVENT_TIME_OFFSET] = serialInBuffer[i];
-			}
-			// build custom reset string
-			QString resetInfo = QString::fromStdString(panelEvent.panel);
-			resetInfo += " ";
-			//resetInfo += QString::fromStdString(panelEvent.date);
-			//resetInfo += " ";
-			resetInfo += QString::fromStdString(panelEvent.time);
-			emit callResetPanelEvent(resetInfo);
+			QString temp = QString::fromStdString(serialInBuffer);
+			int startPostition = temp.indexOf(0x09);
+			int endPosition = temp.indexOf(0x03);
+			panelEvent.block2text = temp.mid(startPostition, ((endPosition - startPostition)));
+			panelEvent.block2text.remove(QChar(0x7f));
+			panelEvent.block2text = panelEvent.block2text.simplified();
+			qDebug() << panelEvent.block2text;
+			panelEvent.blocksFilled = 0;
+			secondBlkTimeout->stop();
+			// trigger the fire etc
+			QString message = panelEvent.block1text + " " + panelEvent.block2text;
+			emit callFirePanelEvent(message,eventCount);
 		}
-		// silence bells
-		if (strncmp((serialInBuffer + EVENT_OFFSET), "131", 3) == 0)
-		{
-			strcpy(panelEvent.event, "Silence");
-			logIt = true;
-			for (size_t i = 0; i < parseLength; i++)
-			{
-				if (i >= PANEL_OFFSET & i<EVENT_OFFSET) panelEvent.panel[i - PANEL_OFFSET] = serialInBuffer[i];
-				if (i >= EVENT_TIME_OFFSET & i<LOOP_OFFSET) panelEvent.time[i - EVENT_TIME_OFFSET] = serialInBuffer[i];
-			}
-			// build custom reset string
-			QString resetInfo = QString::fromStdString(panelEvent.panel);
-			resetInfo += " ";
-			//resetInfo += QString::fromStdString(panelEvent.date);
-			//resetInfo += " ";
-			resetInfo += QString::fromStdString(panelEvent.time);
-			emit callSilencePanelEvent(resetInfo);
-		}
-		
-		serialTXtokenFree = true;
-		break;
-	case INFO_MSG:
-		// eg time date from panel
-
-		strcpy(DTGstring, "sudo date -s 'yyyy-mm-dd hh:mm:ss'>>debugLog.txt");
-		// replace with received data
-		for (size_t i = SYSTEM_DATE_OFFSET; i < SYSTEM_DATE_END; i++)
-		{
-			DTGstring[i] = serialInBuffer[i + 14];
-		}
-		sendresult = system(DTGstring);
-		// 256 is a fail, 0 seems to be all oK
-		if (sendresult == 0)
-		{
-			systemTimeUpdate = true;
-			qDebug() << "Updated system time";
-		}
-		serialTXtokenFree = true;
-		break;
-	case STATUS_MSG:
-		serialTXtokenFree = true;
-		break;
-	default:
-		// unknown, request a retry, unless this is a retry!
-		if (whatWasThat == 0) whatWasThat = SEND_NAK_TIMES;
-		break;
 	}
-
-	// lets ack or nak the message we got
-	if (whatWasThat == 0)	sendresult = sendSerialMessage(ACK);
-	else{
-		sendresult = sendSerialMessage(NAK);
-		whatWasThat--;
-	}
-	// do we log stuff?
-	if (logIt == true)
+	// reset don't forget reset event count!
+	else if ((serialInBuffer[11] == '0')&((serialInBuffer[12] == '3'))&(serialInBuffer[13] == '6'))
 	{
-		logIt = false;
-		/*
-		char DTGstring[100];
-		strcpy(DTGstring, "sudo date>>debugLog.txt");
-		system(DTGstring);
-		*/
-		// lets try open using traditional approach
-		logFile = fopen(PANEL_EVENT_LOG, "a+");
-		fprintf(logFile, "----------------------------------------------------------\n");
-		// now lets get date
-		struct tm * timeinfo;
-		time_t rawtime;
-		time(&rawtime);
-		timeinfo = localtime(&rawtime);
-
-		fprintf(logFile, "Current local time and date: %s\n", asctime(timeinfo));
-		fprintf(logFile, "Message Received: %s\n", panelEvent.event);
-		fprintf(logFile, "%s\n", panelEvent.text);
-		fprintf(logFile, "Panel: %s Zone: %s Event Time: %s\n", panelEvent.panel, panelEvent.zone, panelEvent.time);
-		fprintf(logFile, "Sensor: %s Sensor Address: %s Analogue Value: %s\n\n", panelEvent.sensor, panelEvent.sensorAddr, panelEvent.analogVal);
-		fprintf(logFile, "Raw Message: %s\n", serialInBuffer);
-		fclose(logFile);
-		//sendMail(emailType);
+		QString temp = QString::fromStdString(serialInBuffer);
+		qDebug() << " Fire Panel Parsed: " << temp;
+		panelEvent.blocksFilled = 0;
+		eventCount = 0;
+		emit callResetPanelEvent("Evacuation");
 	}
-
+	// silence bells
+	else if ((serialInBuffer[11] == '0')&((serialInBuffer[12] == '3'))&(serialInBuffer[13] == '7'))
+	{
+		QString temp = QString::fromStdString(serialInBuffer);
+		qDebug() << " Fire Panel Parsed: " << temp;
+		emit callSilencePanelEvent("BELLS SILENCED!");
+	}
 }
 
 int zitonClass::deleteAll()
@@ -585,4 +379,24 @@ void zitonClass::inputTimedOut()
 	serialInTimer->stop();
 	serialInTimer->start(READ_INPUT_BUFFER_RATE);
 	qDebug() << "Corrupt incoming string";
+}
+
+void zitonClass::secondBlockMissing()
+{
+	secondBlkTimeout->stop();
+	QString message = panelEvent.block1text + " " + SECOND_BLK_WARNING;
+	emit callFirePanelEvent(message, eventCount);
+	panelEvent.blocksFilled = 0;
+	qDebug() << "Missing 2nd Block";
+}
+
+void zitonClass::panelLinkFail()
+{
+	// emit a signal that MainW can catch
+	emit serialLinkFailed(LINK_FAIL_MSG,PERIPH_FAULT_CODE);
+}
+
+QString zitonClass::getPanelAlarmTime(void)
+{
+	return panelEvent.time;
 }
