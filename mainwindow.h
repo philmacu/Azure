@@ -27,6 +27,7 @@ class AbstractedSmsClass;
 class notifierPanel;
 class zitonClass;
 class LogClass;
+class HyteraInterfaceClass;
 
 struct TaskData {
 	QString protocol;
@@ -56,6 +57,7 @@ public : explicit MainWindow(QWidget *parent = 0);
 	ContactClass *pcsContacts;
 	ContactClass *hytContacts;
 	AbstractedSmsClass *SMSinterface;
+	HyteraInterfaceClass *HYTinterface;
 	zitonClass *firePanel;
 	QString panelText;
 	LogClass *theLogs;

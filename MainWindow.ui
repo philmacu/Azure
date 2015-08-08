@@ -501,7 +501,7 @@
      </rect>
     </property>
     <property name="currentIndex">
-     <number>0</number>
+     <number>2</number>
     </property>
     <property name="elideMode">
      <enum>Qt::ElideMiddle</enum>
@@ -767,6 +767,39 @@
         <y>20</y>
         <width>381</width>
         <height>251</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QDateTimeEdit" name="dateTimeEdit">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>280</y>
+        <width>381</width>
+        <height>61</height>
+       </rect>
+      </property>
+     </widget>
+     <widget class="QTimeEdit" name="timeEdit">
+      <property name="geometry">
+       <rect>
+        <x>40</x>
+        <y>350</y>
+        <width>118</width>
+        <height>22</height>
+       </rect>
+      </property>
+      <property name="currentSection">
+       <enum>QDateTimeEdit::HourSection</enum>
+      </property>
+     </widget>
+     <widget class="QDateEdit" name="dateEdit">
+      <property name="geometry">
+       <rect>
+        <x>180</x>
+        <y>350</y>
+        <width>110</width>
+        <height>22</height>
        </rect>
       </property>
      </widget>
@@ -2630,19 +2663,6 @@
       <string>OK</string>
      </property>
     </widget>
-   </widget>
-   <widget class="QTimeEdit" name="timeEdit">
-    <property name="geometry">
-     <rect>
-      <x>720</x>
-      <y>440</y>
-      <width>118</width>
-      <height>22</height>
-     </rect>
-    </property>
-    <property name="currentSection">
-     <enum>QDateTimeEdit::HourSection</enum>
-    </property>
    </widget>
    <widget class="QLCDNumber" name="lcdNumber">
     <property name="geometry">

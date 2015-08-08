@@ -5,6 +5,7 @@
 #include "scenarothread.h"
 #include "contactclass.h"
 #include "abstractedsmsclass.h"
+#include "HyteraInterfaceClass.h"
 //#include "notifierPanel.h" --- include only one!
 #include "zitonClass.h"
 
@@ -25,6 +26,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 	firePanel = new zitonClass;
 	// devices reg is passed to scenario then object
 	SMSinterface = new AbstractedSmsClass;
+	HYTinterface = new HyteraInterfaceClass;
 	// lets create a scenario object
 	touchButtonScenario = new ScenarioThread;
 	firePanelScenario = new ScenarioThread;
@@ -58,6 +60,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 
 	updateStatusBar("Load errors please review.");
 	qDebug() << "SMS Phone Book Size: " << smsContacts->contactNumbers.size();
+	qDebug() << "Hyt phone book size: " << hytContacts->contactNumbers.size();
 	// start timers
 	readSerialSMS->start(10);
 	sendATcommand->start(1000);
@@ -78,6 +81,7 @@ MainWindow::~MainWindow()
 	delete pcsContacts;
 	delete hytContacts;
 	delete SMSinterface;
+	delete HYTinterface;
 	delete blankStatusBar;
 	delete readSerialSMS;
 	delete sendATcommand;
@@ -100,20 +104,7 @@ void MainWindow::setUpConnections()
 		this, SLOT(incomingScenarioTaskInfo(QString)));
 	connect(firePanelEvacuateScenario, SIGNAL(sendScenarioTaskInfo(QString)),
 		this, SLOT(incomingScenarioTaskInfo(QString)));
-	// tasks --- via the scenario signal now
-	//connect(touchButtonScenario,SIGNAL(sendTaskName(QString)),
-	//	this,SLOT(incomingTaskName(QString)));
-	//connect(firePanelScenario,SIGNAL(sendTaskName(QString)),
-	//	this,SLOT(incomingTaskName(QString)));
-	//connect(firePanelResetScenario, SIGNAL(sendTaskName(QString)),
-	//	this, SLOT(incomingTaskName(QString)));
-	//connect(firePanelFaultScenario, SIGNAL(sendTaskName(QString)),
-	//	this, SLOT(incomingTaskName(QString)));
-	//connect(firePanelSilenceScenario, SIGNAL(sendTaskName(QString)),
-	//	this, SLOT(incomingTaskName(QString)));
-	//connect(firePanelEvacuateScenario, SIGNAL(sendTaskName(QString)),
-	//	this, SLOT(incomingTaskName(QString)));
-	     // connect the sceanrio end signals
+
 	connect(touchButtonScenario,SIGNAL(notifyScenarioFinished()),
 		this,SLOT(scenarioFinished()));
 	connect(firePanelScenario,SIGNAL(notifyScenarioFinished()),
@@ -161,9 +152,9 @@ void MainWindow::setUpConnections()
 	// peripheral alarms
 	connect(firePanel, SIGNAL(serialLinkFailed(QString,int)), this, SLOT(peripheralFail(QString,int)));
 
-	// connect SMS device to logFile
+	// connect device to logFile
 	connect(SMSinterface, SIGNAL(pleaseLogThis(QString)), theLogs, SLOT(writeToUserLog(QString)));
-
+	connect(HYTinterface, SIGNAL(pleaseLogThis(QString)), theLogs, SLOT(writeToUserLog(QString)));
 }
 
 
@@ -303,6 +294,9 @@ void MainWindow::queueManDown()
 // load the config params
 int MainWindow::loadConfigFiles()
 {
+	/* 
+						Link each scenario to the phone books
+	*/
 	// add scenario here
     // try loading a phone book
 	QString fileName = "/home/sts/files/sms_contacts.txt"; /*"c:/Users/Phil/Documents/sms_contacts.txt";*/
@@ -318,7 +312,30 @@ int MainWindow::loadConfigFiles()
 		firePanelSilenceScenario->smsContactRef = smsContacts;
 		firePanelEvacuateScenario->smsContactRef = smsContacts;
 	}
-	else updateStatusBar((fileName + " Load Error"));
+	else
+	{
+		updateStatusBar((fileName + " Load Error"));
+		theLogs->writeToEngLog(fileName + " Load Error");
+	}
+
+	fileName = "/home/sts/files/hyt_contacts.txt"; 
+	if (fileLoader->loadContacts(fileName, hytContacts))
+	{
+		updateStatusBar((fileName + " Loaded OK"));
+		// pass in a reference to sms contact list
+		fileLoader->hytPhoneBook = hytContacts;
+		touchButtonScenario->hytContactRef = hytContacts;
+		firePanelScenario->hytContactRef = hytContacts;
+		firePanelResetScenario->hytContactRef = hytContacts;
+		firePanelFaultScenario->hytContactRef = hytContacts;
+		firePanelSilenceScenario->hytContactRef = hytContacts;
+		firePanelEvacuateScenario->hytContactRef = hytContacts;
+	}
+	else
+	{
+		updateStatusBar((fileName + " Load Error"));
+		theLogs->writeToEngLog(fileName + " Load Error");
+	}
 
 	fileName = "/home/sts/files/pcs_contacts.txt";
 	if (fileLoader->loadContacts(fileName, pcsContacts))
@@ -332,9 +349,15 @@ int MainWindow::loadConfigFiles()
 		firePanelSilenceScenario->pcsContactRef = pcsContacts;
 		firePanelEvacuateScenario->pcsContactRef = pcsContacts;
 	}
-	else updateStatusBar((fileName + " Load Error"));
+	else
+	{
+		updateStatusBar((fileName + " Load Error"));
+		theLogs->writeToEngLog(fileName + " Load Error");
+	}
 
-	    // for test lets try open a file
+	/*
+					Load the scenario instructions
+	*/
 	fileName = "/home/sts/files/fire.txt" /*"/home/sts/files/fire.txt"*/;
 	if (fileLoader->loadFile(fileName, firePanelScenario))
 	{
@@ -495,6 +518,13 @@ void MainWindow::passRefOfDevicesToScenario(void)
 	firePanelFaultScenario->linkScenarioToMultipleDevices(SMSinterface);
 	firePanelSilenceScenario->linkScenarioToMultipleDevices(SMSinterface);
 	firePanelEvacuateScenario->linkScenarioToMultipleDevices(SMSinterface);
+	// references to DMR
+	touchButtonScenario->linkScenarioToMultipleDevices(HYTinterface);
+	firePanelScenario->linkScenarioToMultipleDevices(HYTinterface);
+	firePanelResetScenario->linkScenarioToMultipleDevices(HYTinterface);
+	firePanelFaultScenario->linkScenarioToMultipleDevices(HYTinterface);
+	firePanelSilenceScenario->linkScenarioToMultipleDevices(HYTinterface);
+	firePanelEvacuateScenario->linkScenarioToMultipleDevices(HYTinterface);
 }
 
 
@@ -538,13 +568,9 @@ void MainWindow::firePanelFIRE(QString s,int i)
 
 void MainWindow::firePanelReset(QString)
 {
-	// possible reset tab graphics
-	//if (ui->infoPage->tabText(FAULTS_PAGE) == "Panel Faults")
-	//{
-		//ui->infoPage->setTabText(FAULTS_PAGE, "Panel Faults Cleared");
-		//ui->infoPage->setTabEnabled(FAULTS_PAGE, false);
-		ui->infoPage->setCurrentIndex(ALARM_STATUS_PAGE);
-	//}
+
+	ui->infoPage->setCurrentIndex(ALARM_STATUS_PAGE);
+
 	// clear fire list
 	ui->listFires->clear();
 	ui->listFaults->clear();
@@ -553,7 +579,7 @@ void MainWindow::firePanelReset(QString)
 	ui->fault->setVisible(false);
 	ui->fire->setVisible(false);
 	ui->evacuate->setVisible(false);
-	theLogs->writeToUserLog("Panel Reset By User");
+	theLogs->writeToUserLog("Panel Reset By User. (Panel Time:"+firePanel->panelEvent.time + ")");
 	// call the scenario
 	if (!m_keyLockOut)
 		queueScenario(firePanelResetScenario);
@@ -592,7 +618,7 @@ void MainWindow::firePanelSilence(QString s)
 {
 	m_bellsSilenced = true;
 	ui->silence->setVisible(true);
-	theLogs->writeToUserLog("User Silenced Bells");
+	theLogs->writeToUserLog("User Silenced Bells (Panel Time:" + firePanel->panelEvent.time + ")");
 	// call the scenario
 	if (!m_keyLockOut)
 		queueScenario(firePanelSilenceScenario);
@@ -602,7 +628,7 @@ void MainWindow::firePanelEvacuate(QString s)
 {
 	ui->evacuate->setVisible(true);
 	ui->listFires->addItem(s);
-	theLogs->writeToUserLog("Manual Activation Of Evacuation");
+	theLogs->writeToUserLog("Manual Activation Of Evacuation (Panel Time:" + firePanel->panelEvent.time + ")");
 	// call scenario
 	if (!m_keyLockOut)
 		queueScenario(firePanelEvacuateScenario);

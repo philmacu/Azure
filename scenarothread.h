@@ -11,6 +11,7 @@
 class TaskClass;
 class ContactClass;
 class AbstractedSmsClass;
+class HyteraInterfaceClass;
 struct TaskData;
 
 class ScenarioThread : public QThread
@@ -37,7 +38,9 @@ public:
     // we dont need to new them as the memory is allocated already
     ContactClass *smsContactRef;
     ContactClass *pcsContactRef;
+	ContactClass *hytContactRef;
 	AbstractedSmsClass *smsDevice;
+	HyteraInterfaceClass *hytDevice;
     void setPriority(int p);
     int getPriority(void);
     bool isRunning(void); // bool state of scenarrio
@@ -56,6 +59,7 @@ public:
     bool isCurrentlyLatched() const;
     void setIsCurrentlyLatched(bool isCurrentlyLatched);
 	void linkScenarioToMultipleDevices(AbstractedSmsClass *sms); //increase to allow all interfaces
+	void linkScenarioToMultipleDevices(HyteraInterfaceClass *hyt); // overloaded for hyt
 	TaskClass *taskControl;
 	QString panelText;
 private:

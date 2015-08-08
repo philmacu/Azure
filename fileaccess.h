@@ -25,7 +25,7 @@ public:
     // after loading give us a ref to the phoneBooks
     ContactClass *pcsPhoneBook;
     ContactClass *smsPhoneBook;
-    ContactClass *dmrPhoneBook;
+    ContactClass *hytPhoneBook;
     int taskErrors; // number of errors found when loading tasks
     int scenarioErrors;
 private:

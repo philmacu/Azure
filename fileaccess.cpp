@@ -306,7 +306,7 @@ int FileAccess::loadTaskConfig()
     int tasksFound = 0;
     int start = -1 ,end = -1;
     int indexPCS,indexDLY, indexSMS, indexSLC, indexOUT,
-            indexAUD, indexDMR;
+            indexAUD, indexHYT;
 
     // find task list sequence
     while (currentIndex < stringLen)
@@ -324,8 +324,8 @@ int FileAccess::loadTaskConfig()
         if ((indexOUT > -1) & (indexOUT < lowestVal)) lowestVal = indexOUT;
         indexAUD = m_fileText.indexOf("#AUD#",currentIndex);
         if ((indexAUD > -1) & (indexAUD < lowestVal)) lowestVal = indexAUD;
-        indexDMR = m_fileText.indexOf("#DMR#",currentIndex);
-        if ((indexDMR > -1) & (indexDMR < lowestVal)) lowestVal = indexDMR;
+        indexHYT = m_fileText.indexOf("#HYT#",currentIndex);
+        if ((indexHYT > -1) & (indexHYT < lowestVal)) lowestVal = indexHYT;
 
         if (lowestVal > firstEndAt) break;
 
@@ -434,13 +434,13 @@ int FileAccess::loadTaskConfig()
             emit statusUpdate("Task AUD");
             tasksFound++;
         }
-        else if (lowestVal == indexDMR)
+        else if (lowestVal == indexHYT)
         {
-            emit statusUpdate("Task DMR");
-            /*QChar callGroup = m_fileText[lowestVal+6];
+            emit statusUpdate("Task HYT");
+            QChar callGroup = m_fileText[lowestVal+6];
             // test if this matches a char in the phone book
-            if (!dmrPhoneBook->contactNumbers.contains(callGroup))
-                emit statusUpdate("Unknown group in PCS call list");
+            if (!hytPhoneBook->contactNumbers.contains(callGroup))
+                emit statusUpdate("Unknown group in HYT call list");
 
             // now find message, first ' should be at a fixed position
             if (m_fileText[lowestVal+8] == '\'')
@@ -457,7 +457,7 @@ int FileAccess::loadTaskConfig()
                     // extract message
                     QString message = m_fileText.midRef(start,(end-start)).toString();
                     qDebug() << message;
-                    QString taskMember = "#DMR#";
+                    QString taskMember = "#HYT#";
                     // load other vals
                     TaskData taskInfo;
                     taskInfo.protocol = taskMember;
@@ -469,7 +469,7 @@ int FileAccess::loadTaskConfig()
                 }
             }
             else emit statusUpdate("Please check for missing ' at start");
-            */
+            
             tasksFound++;
         }
         currentIndex = lowestVal + 1;

@@ -142,6 +142,7 @@ private:
 	buildSMSflags includeInSMS;
 	int eventCount;
 	bool m_readSerial;
+
 private slots:
 	void sendHeartbeat(void);
 	void testForSerialIn(void);

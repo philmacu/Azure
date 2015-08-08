@@ -3,6 +3,7 @@
 #include "contactclass.h"
 #include "mainwindow.h"
 #include "abstractedsmsclass.h"
+#include "HyteraInterfaceClass.h"
 
 struct TaskData;
 
@@ -49,7 +50,7 @@ void ScenarioThread::run()
             }
 
             TaskData poppedTask = taskVector[i];
-
+			qDebug() << "Task Protocol: " << poppedTask.protocol;
             if ((poppedTask.protocol == "#PCS#") & !m_stop)
             {
 				emit sendScenarioTaskInfo("---> Paging: " + (poppedTask.messageBody) +
@@ -70,6 +71,18 @@ void ScenarioThread::run()
                 taskControl->SMScommand(smsDevice, poppedTask,smsContactRef);
 				emit  sendScenarioTaskInfo("--->Text Sent To Group ");
             }
+			else if ((poppedTask.protocol == "#HYT#") & !m_stop)
+			{
+				poppedTask.panelText = panelText; // this was loaded when fire alarm went off via MainWindow
+				if (poppedTask.messageBody == BODY_SOURCE)
+					emit sendScenarioTaskInfo("---> Sending a Text :" + (poppedTask.panelText) +
+					" : To group " + (poppedTask.messageGroup));
+				else
+					emit sendScenarioTaskInfo("---> Sending a Text :" + (poppedTask.messageBody) +
+					" : To group " + (poppedTask.messageGroup));
+				taskControl->HYTcommand(hytDevice, poppedTask, hytContactRef);
+				emit  sendScenarioTaskInfo("--->Hytera operation ");
+			}
 
             // task is finished
         }
@@ -216,4 +229,10 @@ void ScenarioThread::linkScenarioToMultipleDevices(AbstractedSmsClass *sms)
 {
 	// will copy pointers to the interfaces
 	smsDevice = sms;
+}
+
+void ScenarioThread::linkScenarioToMultipleDevices(HyteraInterfaceClass *hyt)
+{
+	// will copy pointers to the interfaces
+	hytDevice = hyt;
 }

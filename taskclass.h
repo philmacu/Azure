@@ -22,9 +22,11 @@ using namespace std;
 
 #define BODY_SOURCE "USE RS232"
 #define TEXT_FAIL_TIME 15000
+#define HYT_TEXT_FAIL_TIME 30000
 
 class ContactClass;
 class AbstractedSmsClass;
+class HyteraInterfaceClass;
 
 struct TaskData;
 
@@ -36,10 +38,12 @@ public:
     ~TaskClass();
     int PCScommand(TaskData commandAndData, ContactClass *phoneBook);
 	int SMScommand(AbstractedSmsClass *smsDevice, TaskData commandAndData, ContactClass *phoneBook);
+	int HYTcommand(HyteraInterfaceClass *hytDevice, TaskData commandAndData, ContactClass *phoneBook);
     int StopTask(void); // kills the task?
     int PauseTask(void); // pauses the task?
     void killTask(void);
 	QTimer *SmsTextStuckWd;
+	QTimer *hytTextStuckWd;
 private:
     bool m_kill;
 	bool m_abortText;
@@ -51,6 +55,7 @@ public slots:
 	
 private slots:
 	void WDsmsStuck(void);
+	void WDhytStuck(void);
 };
 
 #endif // TASKCLASS_H

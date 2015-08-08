@@ -302,6 +302,7 @@ void zitonClass::parseReceivedData()
 	{
 		// single part message
 		QString temp = QString::fromStdString(serialInBuffer);
+		panelEvent.time = temp.mid(42, 2) + ":" + temp.mid(45, 2);
 		qDebug() << " Fire Panel Parsed: " << temp;
 		emit callEvacuatePanelEvent("Evacuation");
 	}
@@ -351,6 +352,7 @@ void zitonClass::parseReceivedData()
 	{
 		QString temp = QString::fromStdString(serialInBuffer);
 		qDebug() << " Fire Panel Parsed: " << temp;
+		panelEvent.time = temp.mid(42, 2) + ":" + temp.mid(45, 2);
 		panelEvent.blocksFilled = 0;
 		eventCount = 0;
 		emit callResetPanelEvent("Evacuation");
@@ -360,6 +362,7 @@ void zitonClass::parseReceivedData()
 	{
 		QString temp = QString::fromStdString(serialInBuffer);
 		qDebug() << " Fire Panel Parsed: " << temp;
+		panelEvent.time = temp.mid(42, 2) + ":" + temp.mid(45, 2);
 		emit callSilencePanelEvent("BELLS SILENCED!");
 	}
 }
