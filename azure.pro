@@ -11,8 +11,8 @@ TEMPLATE = app
 
 #By default the following file lists are updated automatically by VisualGDB.
 
-SOURCES   += azure.cpp contactclass.cpp fileaccess.cpp HyteraInterfaceClass.cpp LogClass.cpp mainwindow.cpp notifierPanel.cpp scenarothread.cpp abstractedsmsclass.cpp taskclass.cpp zitonClass.cpp
-HEADERS   += contactclass.h fileaccess.h HyteraInterfaceClass.h LogClass.h mainwindow.h notifierPanel.h scenarothread.h abstractedsmsclass.h taskclass.h zitonClass.h
+SOURCES   += azure.cpp contactclass.cpp fileaccess.cpp SerialInterfaceClass.cpp LogClass.cpp mainwindow.cpp notifierPanel.cpp scenarothread.cpp abstractedsmsclass.cpp taskclass.cpp zitonClass.cpp
+HEADERS   += contactclass.h fileaccess.h SerialInterfaceClass.h LogClass.h mainwindow.h notifierPanel.h scenarothread.h abstractedsmsclass.h taskclass.h zitonClass.h
 FORMS     += MainWindow.ui
 RESOURCES += 
 

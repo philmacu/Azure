@@ -11,7 +11,7 @@
 class TaskClass;
 class ContactClass;
 class AbstractedSmsClass;
-class HyteraInterfaceClass;
+class SerialInterfaceClass;
 struct TaskData;
 
 class ScenarioThread : public QThread
@@ -40,7 +40,7 @@ public:
     ContactClass *pcsContactRef;
 	ContactClass *hytContactRef;
 	AbstractedSmsClass *smsDevice;
-	HyteraInterfaceClass *hytDevice;
+	SerialInterfaceClass *hytDevice;
     void setPriority(int p);
     int getPriority(void);
     bool isRunning(void); // bool state of scenarrio
@@ -59,7 +59,7 @@ public:
     bool isCurrentlyLatched() const;
     void setIsCurrentlyLatched(bool isCurrentlyLatched);
 	void linkScenarioToMultipleDevices(AbstractedSmsClass *sms); //increase to allow all interfaces
-	void linkScenarioToMultipleDevices(HyteraInterfaceClass *hyt); // overloaded for hyt
+	void linkScenarioToMultipleDevices(SerialInterfaceClass *hyt); // overloaded for hyt
 	TaskClass *taskControl;
 	QString panelText;
 private:
@@ -86,6 +86,7 @@ signals:
    void sendScenarioTaskInfo(QString);
    void notifyScenarioFinished(void);
    void scenarioIssuingReset(QChar resetGroup);
+   void pleaseLogThis(QString);
 
 public slots:
 

@@ -27,7 +27,7 @@ class AbstractedSmsClass;
 class notifierPanel;
 class zitonClass;
 class LogClass;
-class HyteraInterfaceClass;
+class SerialInterfaceClass;
 
 struct TaskData {
 	QString protocol;
@@ -57,7 +57,7 @@ public : explicit MainWindow(QWidget *parent = 0);
 	ContactClass *pcsContacts;
 	ContactClass *hytContacts;
 	AbstractedSmsClass *SMSinterface;
-	HyteraInterfaceClass *HYTinterface;
+	SerialInterfaceClass *radioInterface;
 	zitonClass *firePanel;
 	QString panelText;
 	LogClass *theLogs;
@@ -104,6 +104,7 @@ public slots :
 	void setKeyLockoutState(bool b);
 	void peripheralFail(QString s, int i); // a peripheral device has died
 	void clearSystemFaults(void);
+	void radioTxNotification(void);
 private slots :
 	void checkForNextScenario(void);
 	void updateStatusBar(QString message);

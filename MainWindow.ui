@@ -803,6 +803,58 @@
        </rect>
       </property>
      </widget>
+     <widget class="QLabel" name="txNoteOn">
+      <property name="geometry">
+       <rect>
+        <x>430</x>
+        <y>20</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>TX Notification ON</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="txFail">
+      <property name="geometry">
+       <rect>
+        <x>430</x>
+        <y>50</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>TX FAIL</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="txOK">
+      <property name="geometry">
+       <rect>
+        <x>430</x>
+        <y>80</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>TX Success</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="txFatal">
+      <property name="geometry">
+       <rect>
+        <x>430</x>
+        <y>110</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>TX FATAL FAIL</string>
+      </property>
+     </widget>
     </widget>
    </widget>
    <widget class="QLabel" name="label_4">

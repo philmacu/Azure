@@ -5,7 +5,7 @@
 #include "scenarothread.h"
 #include "contactclass.h"
 #include "abstractedsmsclass.h"
-#include "HyteraInterfaceClass.h"
+#include "SerialInterfaceClass.h"
 //#include "notifierPanel.h" --- include only one!
 #include "zitonClass.h"
 
@@ -26,7 +26,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWi
 	firePanel = new zitonClass;
 	// devices reg is passed to scenario then object
 	SMSinterface = new AbstractedSmsClass;
-	HYTinterface = new HyteraInterfaceClass;
+	radioInterface = new SerialInterfaceClass;
 	// lets create a scenario object
 	touchButtonScenario = new ScenarioThread;
 	firePanelScenario = new ScenarioThread;
@@ -81,7 +81,7 @@ MainWindow::~MainWindow()
 	delete pcsContacts;
 	delete hytContacts;
 	delete SMSinterface;
-	delete HYTinterface;
+	delete radioInterface;
 	delete blankStatusBar;
 	delete readSerialSMS;
 	delete sendATcommand;
@@ -148,13 +148,15 @@ void MainWindow::setUpConnections()
 	connect(SMSinterface,SIGNAL(signalLevelIs(int)), this, SLOT(gotUpdatedSigLvl(int)));
 	connect(SMSinterface,SIGNAL(parsedIncomingSMS(QString, QString, QString)),
 		this,SLOT(gotNotificationOfSMS(QString, QString, QString)));
+	connect(radioInterface, SIGNAL(updateRadioFlags()), this, SLOT(radioTxNotification()));
 
 	// peripheral alarms
 	connect(firePanel, SIGNAL(serialLinkFailed(QString,int)), this, SLOT(peripheralFail(QString,int)));
 
 	// connect device to logFile
 	connect(SMSinterface, SIGNAL(pleaseLogThis(QString)), theLogs, SLOT(writeToUserLog(QString)));
-	connect(HYTinterface, SIGNAL(pleaseLogThis(QString)), theLogs, SLOT(writeToUserLog(QString)));
+	connect(radioInterface, SIGNAL(pleaseLogThis(QString)), theLogs, SLOT(writeToUserLog(QString)));
+	connect(runningScenario, SIGNAL(pleaseLogThis(QString)), theLogs, SLOT(writeToUserLog(QString)));
 }
 
 
@@ -508,6 +510,13 @@ void MainWindow::gotUpdatedSigLvl(int i)
 	
 }
 
+void MainWindow::radioTxNotification(void)
+{
+	ui->txNoteOn->setVisible(radioInterface->hytFlags.TXonConfirmed);
+	ui->txFail->setVisible(radioInterface->hytFlags.gotTXfail);
+	ui->txOK->setVisible(radioInterface->hytFlags.gotTXOK);
+	ui->txFatal->setVisible(radioInterface->hytFlags.fatalTXproblem);
+}
 
 void MainWindow::passRefOfDevicesToScenario(void)
 {
@@ -519,12 +528,12 @@ void MainWindow::passRefOfDevicesToScenario(void)
 	firePanelSilenceScenario->linkScenarioToMultipleDevices(SMSinterface);
 	firePanelEvacuateScenario->linkScenarioToMultipleDevices(SMSinterface);
 	// references to DMR
-	touchButtonScenario->linkScenarioToMultipleDevices(HYTinterface);
-	firePanelScenario->linkScenarioToMultipleDevices(HYTinterface);
-	firePanelResetScenario->linkScenarioToMultipleDevices(HYTinterface);
-	firePanelFaultScenario->linkScenarioToMultipleDevices(HYTinterface);
-	firePanelSilenceScenario->linkScenarioToMultipleDevices(HYTinterface);
-	firePanelEvacuateScenario->linkScenarioToMultipleDevices(HYTinterface);
+	touchButtonScenario->linkScenarioToMultipleDevices(radioInterface);
+	firePanelScenario->linkScenarioToMultipleDevices(radioInterface);
+	firePanelResetScenario->linkScenarioToMultipleDevices(radioInterface);
+	firePanelFaultScenario->linkScenarioToMultipleDevices(radioInterface);
+	firePanelSilenceScenario->linkScenarioToMultipleDevices(radioInterface);
+	firePanelEvacuateScenario->linkScenarioToMultipleDevices(radioInterface);
 }
 
 

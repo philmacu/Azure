@@ -2,7 +2,7 @@
 #include "contactclass.h"
 #include "mainwindow.h"
 #include "abstractedsmsclass.h"
-#include "HyteraInterfaceClass.h"
+#include "SerialInterfaceClass.h"
 
 TaskClass::TaskClass(QWidget *parent) : QMainWindow(parent)
 {
@@ -71,7 +71,7 @@ int TaskClass::SMScommand(AbstractedSmsClass *smsDevice, TaskData commandAndData
     return 1;
 }
 
-int TaskClass::HYTcommand(HyteraInterfaceClass *hytDevice, TaskData commandAndData, ContactClass *phoneBook)
+int TaskClass::HYTcommand(SerialInterfaceClass *hytDevice, TaskData commandAndData, ContactClass *phoneBook)
 {
 	qDebug() << "Hyt Command Execution called";
 	qDebug() << commandAndData.messageBody + " " << commandAndData.messageGroup << " " << commandAndData.panelText;
@@ -134,3 +134,12 @@ void TaskClass::WDhytStuck(void)
 	qDebug() << "Aborting Current Text --- Hytera unresponsive!";
 }
 
+int TaskClass::DLYcommand(QString delayInterval)
+{
+	// put the thread to sleep? check its within limits
+	int delay = delayInterval.toInt();
+	if (delay > MAX_DELAY)
+		delay = MAX_DELAY;
+	sleep(delay);
+	return 1;
+}

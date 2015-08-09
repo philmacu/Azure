@@ -27,6 +27,10 @@
 #define SERIAL_IN_BUFFER 255
 #define FAST_READ_RATE 10 // can read the serial buffer at 2 rates
 #define SLOW_READ_RATE 100
+#define INITALISING_RATE 100
+#define DEFAULT_ZONE "HYT zon 1\n"
+#define DEFAULT_CHN "HYT chn 1\n"
+#define RETRANSMIT_ATTEMPTS 3
 
 struct serialInterfaceFlags
 {
@@ -34,24 +38,29 @@ struct serialInterfaceFlags
 	bool sentGRP;
 	bool sentZON;
 	bool sentCHN;
+	bool sentTXnotificationON;
 	bool gotACK;
 	bool gotNAK;
 	bool gotTXOK;
 	bool gotTXfail;
 	bool gotResponse;
+	bool TXonConfirmed;
+	bool fatalTXproblem;
 };
 
-class HyteraInterfaceClass : public QMainWindow
+class SerialInterfaceClass : public QMainWindow
 {
 	Q_OBJECT
 
 public:
-	HyteraInterfaceClass();
-	~HyteraInterfaceClass();
+	SerialInterfaceClass();
+	~SerialInterfaceClass();
 	int sendHYTmessage(QString radioGrpCode, QString body);
+	int sendPCSmessage(QString code, QString body);
+	int sendSLCmessage(QString code, QString body);
 	bool isTextCycleFinished(void);
 	void killText(void);
-
+	serialInterfaceFlags hytFlags;
 private:
 	struct termios oldtio, newtio;
 	int fd;
@@ -65,18 +74,26 @@ private:
 	QTimer *readSerial;
 	void parseSerial(void);
 	void clearBuffer(void);
-	serialInterfaceFlags hytFlags;
+	void initalise(void);
 	void clearStateFlags(void); // general clear before send
 	//QTimer *ackFailTimer;
 	//QTimer *privateDeliveryFailTimer;
+	QTimer *initalisationTimer;
 	int sendPrivateMessage(QString s);
 	int sendGroupMessage(QString s);
 	bool m_CTS;
+	int m_initalisationLevel;
+	bool m_systemInitalised;
+	bool m_initalisingRadio;
+	QString lastTransmission;
+	int numberOfRetries;
 private slots:
 	//void ackFail(void);
 	//void privateDeliveryFail(void);
 	void getSerial(void);
+	void initalisationStages(void);
 signals:
 	void pleaseLogThis(QString);
+	void updateRadioFlags(void);
 };
 

@@ -417,7 +417,35 @@ int FileAccess::loadTaskConfig()
         else if (lowestVal == indexDLY)
         {
             emit statusUpdate("Task DLY");
-            tasksFound++;
+
+			// now find message, first ' should be at a fixed position
+			if (m_fileText[lowestVal + 8] == '\'')
+			{
+				start = lowestVal + 9;
+				// have a start lets look for end
+				end = m_fileText.indexOf('\'', start + 1);
+				if (end < 0)
+				{
+					emit statusUpdate("Delay error");
+				}
+				else
+				{
+					// extract message
+					QString message = m_fileText.midRef(start, (end - start)).toString();
+					qDebug() << message;
+					QString taskMember = "#DLY#";
+					// load other vals
+					TaskData taskInfo;
+					taskInfo.protocol = taskMember;
+					taskInfo.messageGroup = '-';
+					taskInfo.messageBody = message;
+					// push it
+
+					m_loadedScenario->taskVector.push_back(taskInfo);
+				}
+			}
+			else emit statusUpdate("Please check for missing ' at start");
+			tasksFound++;
         }
         else if (lowestVal == indexSLC)
         {

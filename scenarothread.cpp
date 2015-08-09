@@ -3,7 +3,7 @@
 #include "contactclass.h"
 #include "mainwindow.h"
 #include "abstractedsmsclass.h"
-#include "HyteraInterfaceClass.h"
+#include "SerialInterfaceClass.h"
 
 struct TaskData;
 
@@ -63,28 +63,50 @@ void ScenarioThread::run()
             {
 				poppedTask.panelText = panelText; // this was loaded when fire alarm went off via MainWindow
 				if (poppedTask.messageBody == BODY_SOURCE)
-					emit sendScenarioTaskInfo("---> Sending a Text :" + (poppedTask.panelText) +
+					emit sendScenarioTaskInfo("---> Sending a Text: " + (poppedTask.panelText) +
 					" : To group " + (poppedTask.messageGroup));
 				else
-					emit sendScenarioTaskInfo("---> Sending a Text :" + (poppedTask.messageBody) +
+					emit sendScenarioTaskInfo("---> Sending a Text: " + (poppedTask.messageBody) +
 					" : To group " + (poppedTask.messageGroup));
                 taskControl->SMScommand(smsDevice, poppedTask,smsContactRef);
-				emit  sendScenarioTaskInfo("--->Text Sent To Group ");
+				emit  sendScenarioTaskInfo("-> Text Sent To Group.");
             }
 			else if ((poppedTask.protocol == "#HYT#") & !m_stop)
 			{
 				poppedTask.panelText = panelText; // this was loaded when fire alarm went off via MainWindow
 				if (poppedTask.messageBody == BODY_SOURCE)
-					emit sendScenarioTaskInfo("---> Sending a Text :" + (poppedTask.panelText) +
+					emit sendScenarioTaskInfo("---> Sending To Radio: " + (poppedTask.panelText) +
 					" : To group " + (poppedTask.messageGroup));
 				else
-					emit sendScenarioTaskInfo("---> Sending a Text :" + (poppedTask.messageBody) +
+					emit sendScenarioTaskInfo("---> Sending To Radio: " + (poppedTask.messageBody) +
 					" : To group " + (poppedTask.messageGroup));
 				taskControl->HYTcommand(hytDevice, poppedTask, hytContactRef);
-				emit  sendScenarioTaskInfo("--->Hytera operation ");
+				emit  sendScenarioTaskInfo("-> Radio Message Sent.");
 			}
-
-            // task is finished
+			else if ((poppedTask.protocol == "#DLY#") & !m_stop)
+			{
+				emit sendScenarioTaskInfo("---> Starting a Delay of: " + poppedTask.messageBody + "s");
+				taskControl->DLYcommand(poppedTask.messageBody);
+				//int delay = poppedTask.messageBody.toInt();
+				//if (delay > MAX_DELAY)
+				//	delay = MAX_DELAY;
+				//sleep(delay);
+				emit sendScenarioTaskInfo("-> Delay Finished.");
+				emit pleaseLogThis("Delay of " + poppedTask.messageBody + "s Finished");
+			}
+			//else if ((poppedTask.protocol == "#AUD#") & !m_stop)
+			//{
+			//	poppedTask.panelText = panelText; // this was loaded when fire alarm went off via MainWindow
+			//	if (poppedTask.messageBody == BODY_SOURCE)
+			//		emit sendScenarioTaskInfo("---> Sending To Radio: " + (poppedTask.panelText) +
+			//		" : To group " + (poppedTask.messageGroup));
+			//	else
+			//		emit sendScenarioTaskInfo("---> Sending To Radio: " + (poppedTask.messageBody) +
+			//		" : To group " + (poppedTask.messageGroup));
+			//	taskControl->HYTcommand(hytDevice, poppedTask, hytContactRef);
+			//	emit  sendScenarioTaskInfo("-> Radio Message Sent.");
+			//}
+   //         // task is finished
         }
         m_stop = true;
 		emit sendScenarioTaskInfo(m_name + " has finished.");
@@ -231,7 +253,7 @@ void ScenarioThread::linkScenarioToMultipleDevices(AbstractedSmsClass *sms)
 	smsDevice = sms;
 }
 
-void ScenarioThread::linkScenarioToMultipleDevices(HyteraInterfaceClass *hyt)
+void ScenarioThread::linkScenarioToMultipleDevices(SerialInterfaceClass *hyt)
 {
 	// will copy pointers to the interfaces
 	hytDevice = hyt;
